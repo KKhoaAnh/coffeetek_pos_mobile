@@ -1,0 +1,12 @@
+import React from 'react';
+import { View, Text } from 'react-native';
+import { Button } from 'react-native-paper';
+import { useAuthStore } from '../../store/auth.store';
+import { ShiftScreen } from '../manager/ShiftScreen';
+//import { TableScreen } from './TableScreen';
+import {MenuScreen} from '../menu/MenuScreen';
+// import {LoginScreen} from './auth/LoginScreen';
+// export const HomeScreen = TableScreen;
+// export const HomeScreen = ShiftScreen;
+// export const HomeScreen = LoginScreen;
+export const HomeScreen = MenuScreen;
