@@ -1,5 +1,5 @@
 const nodemailer = require('nodemailer');
-
+require('dns').setDefaultResultOrder('ipv4first');
 // Tạo transporter một lần, dùng lại cho mỗi lần gửi
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
