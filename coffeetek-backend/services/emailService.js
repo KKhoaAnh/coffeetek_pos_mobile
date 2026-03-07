@@ -1,60 +1,14 @@
-const nodemailer = require('nodemailer');
-const dns = require('dns');
+// ================================================================
+// RESEND EMAIL SERVICE
+// Sử dụng Resend API (HTTP) thay cho SMTP — tương thích Render free tier
+// ================================================================
+const { Resend } = require('resend');
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // ================================================================
-// Lazy transporter — resolve DNS sang IPv4 thủ công
-// (Render free tier chặn outbound IPv6)
+// HELPERS
 // ================================================================
-const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
-// const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587');
-const SMTP_PORT = parseInt(process.env.SMTP_PORT || '465');
-let _transporter = null;
-
-/**
- * Tạo transporter với host đã resolve sang IPv4.
- * Gọi 1 lần, cache lại để dùng tiếp.
- */
-const getTransporter = () => {
-    return new Promise((resolve, reject) => {
-        if (_transporter) return resolve(_transporter);
-
-        // Resolve hostname sang IPv4 thủ công
-        dns.resolve4(SMTP_HOST, (err, addresses) => {
-            if (err || !addresses || addresses.length === 0) {
-                console.error('[Email] Không thể resolve IPv4 cho', SMTP_HOST, err?.message);
-                // Fallback: thử dùng hostname gốc
-                _transporter = nodemailer.createTransport({
-                    host: SMTP_HOST,
-                    port: SMTP_PORT,
-                    secure: false,
-                    auth: {
-                        user: process.env.SMTP_USER,
-                        pass: process.env.SMTP_PASS,
-                    },
-                });
-                return resolve(_transporter);
-            }
-
-            const ipv4 = addresses[0]; // VD: '142.250.157.108'
-            console.log(`[Email] Resolved ${SMTP_HOST} → ${ipv4} (IPv4)`);
-
-            _transporter = nodemailer.createTransport({
-                host: ipv4,          // Kết nối trực tiếp tới IPv4
-                port: SMTP_PORT,
-                secure: false,
-                auth: {
-                    user: process.env.SMTP_USER,
-                    pass: process.env.SMTP_PASS,
-                },
-                tls: {
-                    servername: SMTP_HOST, // Cần cho TLS certificate validation
-                },
-            });
-
-            resolve(_transporter);
-        });
-    });
-};
 
 /**
  * Format tiền VND
@@ -82,6 +36,10 @@ const formatTime = (dateStr) => {
     const d = new Date(dateStr);
     return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
 };
+
+// ================================================================
+// HTML TEMPLATE
+// ================================================================
 
 /**
  * Tạo HTML email báo cáo kết ca
@@ -301,8 +259,12 @@ const buildShiftReportHTML = (data) => {
     `;
 };
 
+// ================================================================
+// GỬI EMAIL QUA RESEND
+// ================================================================
+
 /**
- * Gửi email báo cáo kết ca
+ * Gửi email báo cáo kết ca qua Resend API
  * @param {Object} reportData - Dữ liệu báo cáo ca
  * @param {string} recipientEmail - Email người nhận (nếu không truyền, dùng .env)
  * @returns {Promise<boolean>} - true nếu gửi thành công
@@ -310,8 +272,8 @@ const buildShiftReportHTML = (data) => {
 const sendShiftReport = async (reportData, recipientEmail) => {
     try {
         // Kiểm tra config
-        if (!process.env.SMTP_USER || !process.env.SMTP_PASS || process.env.SMTP_USER === 'your-email@gmail.com') {
-            console.log('[Email] SMTP chưa được cấu hình. Bỏ qua gửi email.');
+        if (!process.env.RESEND_API_KEY) {
+            console.log('[Email] RESEND_API_KEY chưa được cấu hình. Bỏ qua gửi email.');
             return false;
         }
 
@@ -324,17 +286,20 @@ const sendShiftReport = async (reportData, recipientEmail) => {
         const userName = reportData.user_name || 'Nhân viên';
         const endTime = formatDateTime(reportData.end_time);
 
-        const mailOptions = {
-            from: process.env.SMTP_FROM || process.env.SMTP_USER,
-            to: to,
+        // Gửi qua Resend API (HTTP request, không cần SMTP)
+        const { data, error } = await resend.emails.send({
+            from: process.env.RESEND_FROM || 'CoffeeTek POS <onboarding@resend.dev>',
+            to: [to],
             subject: `☕ Báo cáo kết ca - ${userName} - ${endTime}`,
             html: buildShiftReportHTML(reportData),
-        };
+        });
 
-        // Lấy transporter đã resolve IPv4
-        const transporter = await getTransporter();
-        const info = await transporter.sendMail(mailOptions);
-        console.log(`[Email] Gửi thành công đến ${to}: ${info.messageId}`);
+        if (error) {
+            console.error('[Email] Resend trả lỗi:', error);
+            return false;
+        }
+
+        console.log(`[Email] Gửi thành công đến ${to}: ${data.id}`);
         return true;
 
     } catch (error) {
@@ -345,3 +310,60 @@ const sendShiftReport = async (reportData, recipientEmail) => {
 };
 
 module.exports = { sendShiftReport, formatVND, formatDateTime };
+
+
+// ================================================================
+// [BACKUP] NODEMAILER VERSION (Comment lại để tham khảo)
+// ================================================================
+// const nodemailer = require('nodemailer');
+// const dns = require('dns');
+//
+// const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
+// const SMTP_PORT = parseInt(process.env.SMTP_PORT || '465');
+// let _transporter = null;
+//
+// const getTransporter = () => {
+//     return new Promise((resolve, reject) => {
+//         if (_transporter) return resolve(_transporter);
+//         dns.resolve4(SMTP_HOST, (err, addresses) => {
+//             if (err || !addresses || addresses.length === 0) {
+//                 _transporter = nodemailer.createTransport({
+//                     host: SMTP_HOST, port: SMTP_PORT, secure: false,
+//                     auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+//                 });
+//                 return resolve(_transporter);
+//             }
+//             const ipv4 = addresses[0];
+//             _transporter = nodemailer.createTransport({
+//                 host: ipv4, port: SMTP_PORT, secure: false,
+//                 auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+//                 tls: { servername: SMTP_HOST },
+//             });
+//             resolve(_transporter);
+//         });
+//     });
+// };
+//
+// const sendShiftReport_nodemailer = async (reportData, recipientEmail) => {
+//     try {
+//         if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+//             console.log('[Email] SMTP chưa cấu hình. Bỏ qua.');
+//             return false;
+//         }
+//         const to = recipientEmail || process.env.REPORT_EMAIL_TO;
+//         if (!to) { console.log('[Email] Chưa có email nhận.'); return false; }
+//
+//         const transporter = await getTransporter();
+//         const info = await transporter.sendMail({
+//             from: process.env.SMTP_FROM || process.env.SMTP_USER,
+//             to: to,
+//             subject: `☕ Báo cáo kết ca - ${reportData.user_name || 'NV'} - ${formatDateTime(reportData.end_time)}`,
+//             html: buildShiftReportHTML(reportData),
+//         });
+//         console.log(`[Email] Gửi OK: ${info.messageId}`);
+//         return true;
+//     } catch (error) {
+//         console.error('[Email] Lỗi:', error.message);
+//         return false;
+//     }
+// };
