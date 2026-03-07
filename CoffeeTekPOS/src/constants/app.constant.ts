@@ -1,4 +1,5 @@
-const HOST = 'http://172.20.10.8:3000';
+ const HOST = 'http://172.20.10.8:3000';
+// const HOST = 'http://192.168.1.74:3000';
 
 // const HOST = 'https://unfabling-leandra-insectival.ngrok-free.dev';
 export const AppConstants = {

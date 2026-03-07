@@ -1,13 +1,14 @@
 import React, { useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
-import { Text, Surface, Button, IconButton, Modal, Portal, TextInput, Checkbox, Divider, FAB } from 'react-native-paper';
+import { Text, Button, IconButton, Modal, Portal, TextInput, Checkbox, FAB } from 'react-native-paper';
 import { useFocusEffect } from '@react-navigation/native';
 import { ManagerHeader } from '../../components/ManagerHeader';
 import { Colors } from '../../constants/app.constant';
 import { formatCurrency } from '../../utils/format';
 import { modifierApi } from '../../api/modifier.api';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-// Định nghĩa kiểu dữ liệu (Khớp với controller)
+// Định nghĩa kiểu dữ liệu
 interface Modifier {
   modifier_id: number;
   modifier_name: string;
@@ -18,7 +19,7 @@ interface Modifier {
 interface ModifierGroup {
   group_id: number;
   group_name: string;
-  is_multi_select: number | boolean; // Backend trả về 0/1 hoặc true/false
+  is_multi_select: number | boolean;
   is_required: number | boolean;
   modifiers: Modifier[];
 }
@@ -27,21 +28,17 @@ export const ModifierManagementScreen = () => {
   const [groups, setGroups] = useState<ModifierGroup[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // --- STATE CHO MODAL ---
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState<'CREATE_GROUP' | 'CREATE_MOD' | 'EDIT_MOD'>('CREATE_GROUP');
-  
-  // Dữ liệu form
+
   const [targetGroupId, setTargetGroupId] = useState<number | null>(null);
   const [editingModId, setEditingModId] = useState<number | null>(null);
   const [name, setName] = useState('');
   const [price, setPrice] = useState('0');
-  
-  // Checkbox cho Group
+
   const [isMultiSelect, setIsMultiSelect] = useState(false);
   const [isRequired, setIsRequired] = useState(false);
 
-  // --- LOAD DATA ---
   const loadData = async () => {
     setLoading(true);
     try {
@@ -60,8 +57,6 @@ export const ModifierManagementScreen = () => {
       loadData();
     }, [])
   );
-
-  // --- ACTIONS ---
 
   const handleOpenCreateGroup = () => {
     setModalMode('CREATE_GROUP');
@@ -90,12 +85,14 @@ export const ModifierManagementScreen = () => {
   const handleDeleteMod = (modId: number) => {
     Alert.alert("Xác nhận", "Bạn có chắc muốn xóa tùy chọn này?", [
       { text: "Hủy", style: "cancel" },
-      { text: "Xóa", style: "destructive", onPress: async () => {
+      {
+        text: "Xóa", style: "destructive", onPress: async () => {
           try {
             await modifierApi.deleteModifier(modId);
             loadData();
           } catch (e) { Alert.alert("Lỗi", "Không thể xóa"); }
-      }}
+        }
+      }
     ]);
   };
 
@@ -109,7 +106,7 @@ export const ModifierManagementScreen = () => {
           is_multi_select: isMultiSelect,
           is_required: isRequired
         });
-      } 
+      }
       else if (modalMode === 'CREATE_MOD' && targetGroupId) {
         await modifierApi.createModifier({
           group_id: targetGroupId,
@@ -125,7 +122,7 @@ export const ModifierManagementScreen = () => {
       }
 
       setModalVisible(false);
-      loadData(); // Refresh lại danh sách
+      loadData();
       Alert.alert("Thành công", "Đã lưu thay đổi");
 
     } catch (error) {
@@ -134,83 +131,94 @@ export const ModifierManagementScreen = () => {
     }
   };
 
-  // --- RENDER ITEM ---
-  
   return (
     <View style={styles.container}>
-      <ManagerHeader title="Quản lý Modifiers" subtitle="Thiết lập nhóm và tùy chọn món" />
+      <ManagerHeader title="Quản lý tùy chọn" subtitle="Nhóm tùy chọn & topping" />
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {groups.map((group) => (
-          <Surface key={group.group_id} style={styles.groupCard} elevation={2}>
-            
+          <View key={group.group_id} style={styles.groupCard}>
+
             {/* HEADER CỦA GROUP */}
             <View style={styles.groupHeader}>
-              <View>
-                <Text variant="titleMedium" style={{fontWeight: 'bold', color: Colors.primary}}>
+              <View style={{ flex: 1 }}>
+                <Text variant="titleMedium" style={styles.groupTitle}>
                   {group.group_name}
                 </Text>
-                <View style={{flexDirection: 'row', marginTop: 4}}>
-                  {/* Chuyển đổi 1/0 thành boolean để hiển thị */}
-                  {Boolean(group.is_required) && <Text style={styles.tag}>Bắt buộc</Text>}
-                  {Boolean(group.is_multi_select) && <Text style={[styles.tag, {backgroundColor: '#E3F2FD', color: Colors.blue}]}>Chọn nhiều</Text>}
+                <View style={{ flexDirection: 'row', marginTop: 4 }}>
+                  {Boolean(group.is_required) && (
+                    <View style={styles.tag}>
+                      <Text style={styles.tagText}>Bắt buộc</Text>
+                    </View>
+                  )}
+                  {Boolean(group.is_multi_select) && (
+                    <View style={[styles.tag, styles.tagBlue]}>
+                      <Text style={[styles.tagText, styles.tagBlueText]}>Chọn nhiều</Text>
+                    </View>
+                  )}
                 </View>
               </View>
-              <IconButton 
-                icon="plus-circle" 
-                iconColor={Colors.green} 
-                size={26}
+              <TouchableOpacity
+                style={styles.addModBtn}
                 onPress={() => handleOpenCreateMod(group.group_id)}
-              />
+                activeOpacity={0.7}
+              >
+                <MaterialCommunityIcons name="plus" size={18} color="#8D6E63" />
+              </TouchableOpacity>
             </View>
 
-            <Divider style={{marginVertical: 10}}/>
+            {/* Divider */}
+            <View style={styles.divider} />
 
             {/* DANH SÁCH MODIFIER CON */}
             {group.modifiers.length === 0 ? (
-              <Text style={{fontStyle: 'italic', color: '#999', textAlign: 'center', marginBottom: 10}}>Chưa có tùy chọn nào</Text>
+              <Text style={styles.emptyText}>Chưa có tùy chọn nào</Text>
             ) : (
-              group.modifiers.map(mod => (
-                <TouchableOpacity 
-                  key={mod.modifier_id} 
-                  style={styles.modRow}
+              group.modifiers.map((mod, index) => (
+                <TouchableOpacity
+                  key={mod.modifier_id}
+                  style={[
+                    styles.modRow,
+                    index === group.modifiers.length - 1 && { borderBottomWidth: 0 }
+                  ]}
                   onPress={() => handleOpenEditMod(mod)}
+                  activeOpacity={0.7}
                 >
-                  <Text style={{fontSize: 15}}>{mod.modifier_name}</Text>
-                  <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                    <Text style={{fontWeight: 'bold', color: '#555', marginRight: 10}}>
+                  <Text style={styles.modName}>{mod.modifier_name}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={styles.modPrice}>
                       {mod.extra_price > 0 ? `+${formatCurrency(mod.extra_price)}` : '0đ'}
                     </Text>
-                    <IconButton 
-                      icon="trash-can-outline" 
-                      size={20} 
-                      iconColor={Colors.red} 
+                    <TouchableOpacity
                       onPress={() => handleDeleteMod(mod.modifier_id)}
-                      style={{margin: 0}}
-                    />
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={styles.deleteBtn}
+                    >
+                      <MaterialCommunityIcons name="trash-can-outline" size={16} color="#C47B6F" />
+                    </TouchableOpacity>
                   </View>
                 </TouchableOpacity>
               ))
             )}
-          </Surface>
+          </View>
         ))}
-        <View style={{height: 80}} />
+        <View style={{ height: 80 }} />
       </ScrollView>
 
       {/* FAB THÊM NHÓM */}
       <FAB
         icon="folder-plus"
-        label="Tạo Nhóm Mới"
+        label="Tạo nhóm mới"
         style={styles.fab}
         onPress={handleOpenCreateGroup}
         color="white"
       />
 
-      {/* MODAL NHẬP LIỆU CHUNG CHO CẢ 3 TRƯỜNG HỢP */}
+      {/* MODAL NHẬP LIỆU */}
       <Portal>
         <Modal visible={modalVisible} onDismiss={() => setModalVisible(false)} contentContainerStyle={styles.modalContent}>
-          <Text variant="headlineSmall" style={{fontWeight: 'bold', marginBottom: 15, textAlign: 'center'}}>
-            {modalMode === 'CREATE_GROUP' ? 'Thêm Nhóm Mới' : (modalMode === 'CREATE_MOD' ? 'Thêm tùy chọn' : 'Sửa tùy chọn')}
+          <Text variant="headlineSmall" style={styles.modalTitle}>
+            {modalMode === 'CREATE_GROUP' ? 'Thêm nhóm mới' : (modalMode === 'CREATE_MOD' ? 'Thêm tùy chọn' : 'Sửa tùy chọn')}
           </Text>
 
           <TextInput
@@ -218,21 +226,44 @@ export const ModifierManagementScreen = () => {
             value={name}
             onChangeText={setName}
             mode="outlined"
-            activeOutlineColor={Colors.primary}
-            style={{marginBottom: 10, backgroundColor: 'white'}}
+            activeOutlineColor="#8D6E63"
+            outlineColor="#DDD9D3"
+            textColor="#4A4540"
+            style={styles.input}
+            theme={{
+              colors: { onSurfaceVariant: '#A09B94' }
+            }}
           />
 
           {/* NẾU LÀ TẠO GROUP -> HIỆN CHECKBOX */}
           {modalMode === 'CREATE_GROUP' && (
             <View>
-              <View style={styles.checkboxRow}>
-                <Checkbox status={isMultiSelect ? 'checked' : 'unchecked'} onPress={() => setIsMultiSelect(!isMultiSelect)} color={Colors.primary} />
-                <Text onPress={() => setIsMultiSelect(!isMultiSelect)}>Cho phép chọn nhiều?</Text>
-              </View>
-              <View style={styles.checkboxRow}>
-                <Checkbox status={isRequired ? 'checked' : 'unchecked'} onPress={() => setIsRequired(!isRequired)} color={Colors.primary} />
-                <Text onPress={() => setIsRequired(!isRequired)}>Bắt buộc phải chọn?</Text>
-              </View>
+              <TouchableOpacity
+                style={styles.checkboxRow}
+                onPress={() => setIsMultiSelect(!isMultiSelect)}
+                activeOpacity={0.7}
+              >
+                <Checkbox
+                  status={isMultiSelect ? 'checked' : 'unchecked'}
+                  onPress={() => setIsMultiSelect(!isMultiSelect)}
+                  color="#8D6E63"
+                  uncheckedColor="#DDD9D3"
+                />
+                <Text style={styles.checkboxLabel}>Cho phép chọn nhiều?</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.checkboxRow}
+                onPress={() => setIsRequired(!isRequired)}
+                activeOpacity={0.7}
+              >
+                <Checkbox
+                  status={isRequired ? 'checked' : 'unchecked'}
+                  onPress={() => setIsRequired(!isRequired)}
+                  color="#8D6E63"
+                  uncheckedColor="#DDD9D3"
+                />
+                <Text style={styles.checkboxLabel}>Bắt buộc phải chọn?</Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -244,15 +275,35 @@ export const ModifierManagementScreen = () => {
               onChangeText={setPrice}
               mode="outlined"
               keyboardType="numeric"
-              activeOutlineColor={Colors.primary}
-              style={{marginBottom: 10, backgroundColor: 'white'}}
+              activeOutlineColor="#8D6E63"
+              outlineColor="#DDD9D3"
+              textColor="#4A4540"
+              style={styles.input}
+              theme={{
+                colors: { onSurfaceVariant: '#A09B94' }
+              }}
               right={<TextInput.Affix text="đ" />}
             />
           )}
 
-          <Button mode="contained" onPress={handleSubmit} style={{marginTop: 10, backgroundColor: Colors.primary}}>
-            LƯU LẠI
-          </Button>
+          <View style={styles.modalActions}>
+            <Button
+              mode="text"
+              onPress={() => setModalVisible(false)}
+              textColor="#A09B94"
+              style={{ flex: 1, marginRight: 8 }}
+            >
+              Hủy
+            </Button>
+            <Button
+              mode="contained"
+              onPress={handleSubmit}
+              style={styles.saveBtn}
+              contentStyle={{ height: 48 }}
+            >
+              Lưu thay đổi
+            </Button>
+          </View>
         </Modal>
       </Portal>
 
@@ -261,53 +312,149 @@ export const ModifierManagementScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F6F8' },
+  container: { flex: 1, backgroundColor: '#F4F3F1' },
   content: { padding: 16 },
+
   groupCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    marginBottom: 16,
-    padding: 12,
+    backgroundColor: '#ffffffff',
+    borderRadius: 18,
+    marginBottom: 12,
+    padding: 14,
+    shadowColor: '#8D6E63',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
   },
   groupHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center'
+    alignItems: 'center',
   },
+  groupTitle: {
+    fontWeight: '600',
+    color: '#5D4037',
+    fontSize: 15,
+  },
+
   tag: {
-    fontSize: 10,
-    backgroundColor: '#FFEBEE',
-    color: Colors.red,
-    paddingHorizontal: 6,
+    backgroundColor: '#F0E6E4',
+    paddingHorizontal: 7,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 6,
     marginRight: 6,
-    fontWeight: 'bold'
   },
+  tagText: {
+    fontSize: 10,
+    color: '#C47B6F',
+    fontWeight: '600',
+  },
+  tagBlue: {
+    backgroundColor: '#E6EDE4',
+  },
+  tagBlueText: {
+    color: '#6B8F5E',
+  },
+
+  addModBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: '#ECEAE6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  divider: {
+    height: 0.7,
+    backgroundColor: '#ECEAE6',
+    marginVertical: 10,
+  },
+
   modRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0'
+    paddingVertical: 9,
+    borderBottomWidth: 0.7,
+    borderBottomColor: '#ECEAE6',
   },
+  modName: {
+    fontSize: 14,
+    color: '#4A4540',
+    fontWeight: '500',
+  },
+  modPrice: {
+    fontWeight: '600',
+    color: '#6D4C41',
+    fontSize: 13,
+    marginRight: 8,
+  },
+  deleteBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: '#F0E6E4',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontStyle: 'italic',
+    color: '#A09B94',
+    textAlign: 'center',
+    marginBottom: 8,
+    fontSize: 13,
+  },
+
   fab: {
     position: 'absolute',
     margin: 16,
     right: 0,
     bottom: 0,
-    backgroundColor: Colors.primary,
+    backgroundColor: '#8D6E63',
+    borderRadius: 28,
   },
+
+  // Modal
   modalContent: {
-    backgroundColor: 'white',
-    padding: 20,
+    backgroundColor: '#FAF9F7',
+    padding: 24,
     margin: 20,
-    borderRadius: 12
+    borderRadius: 20,
+    shadowColor: '#8D6E63',
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  modalTitle: {
+    fontWeight: '700',
+    marginBottom: 18,
+    textAlign: 'center',
+    color: '#5D4037',
+  },
+  input: {
+    marginBottom: 12,
+    backgroundColor: '#FAF9F7',
   },
   checkboxRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 5
-  }
+    marginBottom: 4,
+    marginLeft: -4,
+  },
+  checkboxLabel: {
+    color: '#4A4540',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 12,
+  },
+  saveBtn: {
+    backgroundColor: '#8D6E63',
+    borderRadius: 14,
+    flex: 1,
+  },
 });

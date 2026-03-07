@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Product } from './menu.store';
 
 export interface SelectedModifier {
@@ -30,11 +32,13 @@ interface CartState {
   totalQuantity: () => number;
 }
 
-export const useCartStore = create<CartState>((set, get) => ({
-  items: [],
-  currentOrderId: null,
-  
-  addToCart: (newItem) => {
+export const useCartStore = create<CartState>()(
+  persist(
+    (set, get) => ({
+      items: [],
+      currentOrderId: null,
+
+      addToCart: (newItem) => {
     const { items } = get();
     const modIds = newItem.modifiers.map(m => m.modifier_id).sort().join('-');
     const uniqueKey = `${newItem.product.product_id}_${modIds}_${newItem.note.trim()}`;
@@ -125,6 +129,13 @@ export const useCartStore = create<CartState>((set, get) => ({
     });
   },
 
-  totalAmount: () => get().items.reduce((sum, item) => sum + item.totalPrice, 0),
-  totalQuantity: () => get().items.reduce((sum, item) => sum + item.quantity, 0),
-}));
+      totalAmount: () => get().items.reduce((sum, item) => sum + item.totalPrice, 0),
+      totalQuantity: () => get().items.reduce((sum, item) => sum + item.quantity, 0),
+    }),
+    {
+      name: 'cart-storage',
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({ items: state.items, currentOrderId: state.currentOrderId }),
+    }
+  )
+);

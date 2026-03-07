@@ -6,21 +6,27 @@ import {
   ScrollView,
   Text as RNText,
 } from 'react-native';
-import { Text, Surface, Searchbar, Switch, FAB } from 'react-native-paper';
+import { Text, Searchbar, Switch, FAB } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { usePromoStore, Promotion, getDayLabel } from '../../store/promo.store';
 import { ManagerHeader } from '../../components/ManagerHeader';
 import { Colors } from '../../constants/app.constant';
-import { formatCurrency } from '../../utils/format';
+import { formatCurrency, formatDateDMY, formatTimeHM } from '../../utils/format';
 
 type FilterStatus = 'all' | 'active' | 'inactive';
 
 export const PromoManagementScreen = () => {
   const navigation = useNavigation<any>();
-  const { promotions, toggleActive } = usePromoStore();
+  const { promotions, toggleActive, fetchPromotions } = usePromoStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchPromotions();
+    }, [fetchPromotions])
+  );
 
   const filtered = useMemo(() => {
     let list = promotions;
@@ -46,7 +52,9 @@ export const PromoManagementScreen = () => {
 
   const renderTimeRange = (p: Promotion) => {
     if (!p.timeStart && !p.timeEnd) return 'Cả ngày';
-    return `${p.timeStart || '00:00'} - ${p.timeEnd || '23:59'}`;
+    const from = formatTimeHM(p.timeStart || '00:00');
+    const to = formatTimeHM(p.timeEnd || '23:59');
+    return `${from} - ${to}`;
   };
 
   const renderDays = (p: Promotion) => {
@@ -116,7 +124,7 @@ export const PromoManagementScreen = () => {
           </View>
         ) : (
           filtered.map((p) => (
-            <Surface key={p.id} style={styles.card} elevation={2}>
+            <View key={p.id} style={styles.card}>
               <TouchableOpacity
                 style={styles.cardTouch}
                 onPress={() => navigation.navigate('PromoEditScreen', { promoId: p.id })}
@@ -154,11 +162,29 @@ export const PromoManagementScreen = () => {
                           {renderDiscount(p)}
                         </RNText>
                       </View>
+                      {/* Scope badge */}
+                      {p.applyTo && p.applyTo !== 'BILL' && (
+                        <View style={{
+                          backgroundColor: p.applyTo === 'CATEGORY' ? '#FFF3E0' : '#E3F2FD',
+                          paddingHorizontal: 8,
+                          paddingVertical: 3,
+                          borderRadius: 8,
+                          marginRight: 8,
+                          marginBottom: 4,
+                        }}>
+                          <RNText style={{
+                            color: p.applyTo === 'CATEGORY' ? '#E65100' : '#1565C0',
+                            fontWeight: '600', fontSize: 11,
+                          }}>
+                            {p.applyTo === 'CATEGORY' ? 'Nhóm món' : 'Món'}
+                          </RNText>
+                        </View>
+                      )}
                       <RNText style={styles.metaText}>{renderTimeRange(p)}</RNText>
                       <RNText style={styles.metaText}>{renderDays(p)}</RNText>
                     </View>
                     <RNText style={styles.dateRange}>
-                      {p.startDate} → {p.endDate}
+                      {formatDateDMY(p.startDate)} → {formatDateDMY(p.endDate)}
                     </RNText>
                   </View>
                 </View>
@@ -174,7 +200,7 @@ export const PromoManagementScreen = () => {
                   />
                 </View>
               </TouchableOpacity>
-            </Surface>
+            </View>
           ))
         )}
         <View style={styles.bottomSpacer} />
@@ -191,15 +217,15 @@ export const PromoManagementScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F2F4F8' },
+  container: { flex: 1, backgroundColor: '#F4F3F1' },
   searchWrap: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 6 },
   searchBar: {
-    backgroundColor: '#FFF',
+    backgroundColor: '#ECEAE6',
     borderRadius: 14,
     elevation: 0,
     shadowOpacity: 0,
   },
-  searchInput: { minHeight: 0, fontSize: 15 },
+  searchInput: { minHeight: 0, fontSize: 15, color: '#4A4540' },
   chipScroll: { maxHeight: 46, marginBottom: 6 },
   chipWrap: {
     paddingHorizontal: 16,
@@ -211,11 +237,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#FFF',
+    backgroundColor: '#ECEAE6',
     marginRight: 10,
   },
-  chipActive: { backgroundColor: Colors.primary },
-  chipText: { fontSize: 13, color: '#666', fontWeight: '500' },
+  chipActive: { backgroundColor: '#8D6E63' },
+  chipText: { fontSize: 13, color: '#6B6560', fontWeight: '500' },
   chipTextActive: { fontSize: 13, color: '#FFF', fontWeight: '600' },
   listContent: { padding: 16, paddingBottom: 24 },
   empty: {
@@ -223,18 +249,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 48,
   },
-  emptyText: { marginTop: 12, fontSize: 16, color: '#666', fontWeight: '600' },
-  emptySub: { marginTop: 4, fontSize: 13, color: '#999' },
+  emptyText: { marginTop: 12, fontSize: 16, color: '#8D6E63', fontWeight: '600' },
+  emptySub: { marginTop: 4, fontSize: 13, color: '#A09B94' },
 
   card: {
     borderRadius: 18,
-    backgroundColor: '#FFF',
+    backgroundColor: '#ffffffff',
     marginBottom: 12,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
+    shadowColor: '#8D6E63',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
   },
   cardTouch: { padding: 0 },
   badgeWrap: {
@@ -246,15 +273,15 @@ const styles = StyleSheet.create({
   },
   cardBody: { flex: 1, marginLeft: 12, minWidth: 0 },
   cardName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#2D3748',
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#4A4540',
     marginBottom: 4,
   },
-  cardNameInactive: { color: '#9CA3AF' },
+  cardNameInactive: { color: '#B5AEA7' },
   cardDesc: {
     fontSize: 13,
-    color: '#718096',
+    color: '#6B6560',
     marginBottom: 8,
     lineHeight: 18,
   },
@@ -265,7 +292,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   discountChip: {
-    backgroundColor: Colors.primary,
+    backgroundColor: '#8D6E63',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -275,13 +302,13 @@ const styles = StyleSheet.create({
   discountText: { color: '#FFF', fontWeight: '700', fontSize: 12 },
   metaText: {
     fontSize: 11,
-    color: '#718096',
+    color: '#A09B94',
     marginRight: 8,
     marginBottom: 4,
   },
   dateRange: {
     fontSize: 11,
-    color: '#A0AEC0',
+    color: '#B5AEA7',
   },
   cardFooter: {
     flexDirection: 'row',
@@ -289,16 +316,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F3F5',
+    borderTopWidth: 0.7,
+    borderTopColor: '#ECEAE6',
   },
-  switchLabel: { fontSize: 13, color: '#64748B', fontWeight: '500' },
+  switchLabel: { fontSize: 13, color: '#6B6560', fontWeight: '500' },
   switch: { transform: [{ scale: 0.9 }] },
   bottomSpacer: { height: 80 },
   fab: {
     position: 'absolute',
     right: 16,
     bottom: 24,
-    backgroundColor: '#E91E63',
+    backgroundColor: '#8D6E63',
+    borderRadius: 28,
   },
 });

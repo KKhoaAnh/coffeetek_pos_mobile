@@ -1,57 +1,72 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
-import { Text, Surface } from 'react-native-paper';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, Dimensions } from 'react-native';
+import { Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Colors } from '../../constants/app.constant';
 import { ManagerHeader } from '../../components/ManagerHeader';
 import { useAuthStore } from '../../store/auth.store';
 
+const { width } = Dimensions.get('window');
+const CARD_GAP = 14;
+const CARD_WIDTH = (width - 32 - CARD_GAP) / 2;
+
 export const DashboardScreen = ({ navigation }: any) => {
   const user = useAuthStore(state => state.user);
 
-  // Định nghĩa các chức năng quản lý thực tế đã triển khai
   const MENU_ITEMS = [
-    { 
-      id: 'tables', 
-      title: 'Bàn', 
-      icon: 'table-settings', 
-      color: '#FF9800', 
-      screen: 'TableManagementScreen' 
+    {
+      id: 'tables',
+      title: 'Bàn',
+      subtitle: 'Sơ đồ & trạng thái',
+      icon: 'table-furniture',
+      color: '#FF9800',
+      bgColor: '#FFF3E0',
+      screen: 'TableManagementScreen'
     },
-    { 
-      id: 'employees', 
-      title: 'Nhân sự', 
-      icon: 'account-group', 
-      color: '#2196F3', 
-      screen: 'EmployeeManagementScreen' 
+    {
+      id: 'employees',
+      title: 'Nhân sự',
+      subtitle: 'Quản lý nhân viên',
+      icon: 'account-group-outline',
+      color: '#42A5F5',
+      bgColor: '#E3F2FD',
+      screen: 'EmployeeManagementScreen'
     },
-    { 
-      id: 'menu', 
-      title: 'Thực đơn', 
-      icon: 'silverware-variant', 
-      color: '#4CAF50', 
-      screen: 'ProductManagementScreen' 
+    {
+      id: 'menu',
+      title: 'Thực đơn',
+      subtitle: 'Món & tùy chọn',
+      icon: 'silverware-fork-knife',
+      color: '#66BB6A',
+      bgColor: '#E8F5E9',
+      screen: 'ProductManagementScreen'
     },
-    { 
-      id: 'inventory', 
-      title: 'Kho', 
-      icon: 'package-variant-closed', 
-      color: '#00BFA5', 
-      screen: 'InventoryScreen' 
+    {
+      id: 'inventory',
+      title: 'Kho',
+      subtitle: 'Nhập & Xuất & Tồn',
+      icon: 'package-variant',
+      color: '#26A69A',
+      bgColor: '#E0F2F1',
+      screen: 'InventoryScreen'
     },
-    { 
-      id: 'reports', 
-      title: 'Báo cáo', 
-      icon: 'chart-bar', 
-      color: '#9C27B0', 
+    {
+      id: 'reports',
+      title: 'Báo cáo',
+      subtitle: 'Doanh thu thống kê',
+      icon: 'chart-line',
+      color: '#AB47BC',
+      bgColor: '#F3E5F5',
       screen: 'ReportScreen'
     },
-    { 
-      id: 'promo', 
-      title: 'Khuyến mãi', 
-      icon: 'ticket-percent', 
-      color: '#E91E63', 
-      screen: 'PromoManagementScreen' 
+    {
+      id: 'promo',
+      title: 'Khuyến mãi',
+      subtitle: 'KM & giảm giá',
+      icon: 'tag-heart-outline',
+      color: '#EC407A',
+      bgColor: '#FCE4EC',
+      screen: 'PromoManagementScreen'
     },
   ];
 
@@ -65,40 +80,68 @@ export const DashboardScreen = ({ navigation }: any) => {
 
   return (
     <View style={styles.container}>
-      {/* Sử dụng ManagerHeader đã được nâng cấp */}
-      <ManagerHeader 
-        title="Quản Trị" 
-        subtitle="Hệ thống quản lý cửa hàng" 
-        showAvatar 
-        userInitial={user?.fullName ? user.fullName[0] : 'M'} 
+      <ManagerHeader
+        title="Quản lý"
+        subtitle="Hệ thống quản lý cửa hàng"
+        showAvatar
+        userInitial={user?.fullName ? user.fullName[0] : 'M'}
       />
-      
-      <ScrollView contentContainerStyle={styles.gridContainer} showsVerticalScrollIndicator={false}>
-        {MENU_ITEMS.map((item) => (
-          <TouchableOpacity 
-            key={item.id} 
-            style={styles.gridItem}
-            onPress={() => handlePress(item)}
-            activeOpacity={0.7}
-          >
-            <Surface style={styles.card} elevation={2}>
-              <View style={[styles.iconCircle, { backgroundColor: item.color + '15' }]}>
-                <MaterialCommunityIcons name={item.icon as any} size={32} color={item.color} />
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Section title */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Chức năng</Text>
+          <Text style={styles.sectionCount}>{MENU_ITEMS.length} mục</Text>
+        </View>
+
+        {/* Grid */}
+        <View style={styles.grid}>
+          {MENU_ITEMS.map((item) => (
+            <TouchableOpacity
+              key={item.id}
+              style={styles.gridItem}
+              onPress={() => handlePress(item)}
+              activeOpacity={0.75}
+            >
+              <View style={styles.card}>
+                {/* Icon container - squircle lớn */}
+                <View style={[styles.iconBox, { backgroundColor: item.bgColor }]}>
+                  <MaterialCommunityIcons
+                    name={item.icon as any}
+                    size={28}
+                    color={item.color}
+                  />
+                </View>
+
+                {/* Text section */}
+                <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
+                <Text style={styles.cardSubtitle} numberOfLines={1}>{item.subtitle}</Text>
+
+                {/* Arrow indicator */}
+                <View style={styles.arrowBox}>
+                  <MaterialCommunityIcons name="arrow-right" size={16} color="#C5C5C5" />
+                </View>
               </View>
-              <Text style={styles.itemTitle}>{item.title}</Text>
-            </Surface>
-          </TouchableOpacity>
-        ))}
-        
-        {/* Nút Đăng xuất thiết kế đồng bộ */}
-        <TouchableOpacity 
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Đăng xuất */}
+        <TouchableOpacity
           style={styles.logoutWrapper}
           onPress={() => useAuthStore.getState().logout()}
+          activeOpacity={0.7}
         >
-          <Surface style={styles.logoutCard} elevation={1}>
-             <MaterialCommunityIcons name="logout" size={24} color={Colors.red} style={{marginRight: 10}} />
-             <Text style={styles.logoutText}>Đăng xuất tài khoản</Text>
-          </Surface>
+          <View style={styles.logoutCard}>
+            <View style={styles.logoutIconBox}>
+              <MaterialCommunityIcons name="logout" size={20} color={Colors.red} />
+            </View>
+            <Text style={styles.logoutText}>Đăng xuất</Text>
+            <MaterialCommunityIcons name="chevron-right" size={20} color="#D4D4D4" />
+          </View>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -106,62 +149,127 @@ export const DashboardScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F6F8' },
-  gridContainer: { 
-    flexDirection: 'row', 
-    flexWrap: 'wrap', 
-    padding: 16, 
-    justifyContent: 'space-between' 
+  container: {
+    flex: 1,
+    backgroundColor: '#F4F3F1',
   },
-  gridItem: { 
-    width: '48%', 
-    marginBottom: 16 
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 40,
   },
-  card: { 
-    padding: 20, 
-    borderRadius: 20, 
-    backgroundColor: 'white', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    height: 140,
-    // Đảm bảo bóng đổ hiển thị tốt trên cả 2 nền tảng
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-  },
-  iconCircle: { 
-    width: 64, 
-    height: 64, 
-    borderRadius: 32, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    marginBottom: 12 
-  },
-  itemTitle: { 
-    fontWeight: 'bold', 
-    fontSize: 15, 
-    color: '#444',
-    textAlign: 'center'
-  },
-  logoutWrapper: { 
-    width: '100%', 
-    marginTop: 8, 
-    marginBottom: 30 
-  },
-  logoutCard: { 
-    flexDirection: 'row', 
-    justifyContent: 'center', 
+
+  // Section header
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16, 
-    borderRadius: 16, 
-    backgroundColor: '#FFF1F0', // Nền đỏ rất nhạt
-    borderWidth: 1,
-    borderColor: '#FFA39E'
+    marginBottom: 16,
   },
-  logoutText: { 
-    color: Colors.red, 
-    fontWeight: 'bold',
-    fontSize: 16
-  }
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#2D2D2D',
+    letterSpacing: -0.3,
+  },
+  sectionCount: {
+    fontSize: 13,
+    color: '#A0A0A0',
+    fontWeight: '500',
+  },
+
+  // Grid
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  gridItem: {
+    width: CARD_WIDTH,
+    marginBottom: CARD_GAP,
+  },
+
+  // Card - Dribbble POS style
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 28,
+    paddingVertical: 22,
+    paddingHorizontal: 18,
+    // Shadow nhẹ tán rộng
+    shadowColor: '#8D6E63',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 2,
+  },
+
+  // Icon box - squircle lớn
+  iconBox: {
+    width: 52,
+    height: 52,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2D2D2D',
+    marginBottom: 4,
+    letterSpacing: -0.2,
+  },
+  cardSubtitle: {
+    fontSize: 11,
+    color: '#A8A8A8',
+    fontWeight: '500',
+  },
+
+  // Arrow (góc phải dưới)
+  arrowBox: {
+    position: 'absolute',
+    bottom: 16,
+    right: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#F5F5F5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Logout
+  logoutWrapper: {
+    marginTop: 8,
+    marginBottom: 20,
+  },
+  logoutCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 1,
+  },
+  logoutIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: '#FFF1F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  logoutText: {
+    flex: 1,
+    color: Colors.red,
+    fontWeight: '600',
+    fontSize: 15,
+  },
 });

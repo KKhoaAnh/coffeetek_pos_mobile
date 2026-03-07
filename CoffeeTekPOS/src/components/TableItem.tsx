@@ -1,15 +1,14 @@
 import React, { useRef } from 'react';
 import { View, StyleSheet, TouchableWithoutFeedback, Animated, Dimensions } from 'react-native';
-import { Text, Surface } from 'react-native-paper';
+import { Text } from 'react-native-paper';
 
-// [SỬA] Dùng thư viện chuẩn của Expo
-import { MaterialCommunityIcons } from '@expo/vector-icons'; 
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { Table } from '../store/table.store';
 import { Colors } from '../constants/app.constant';
 
 const { width } = Dimensions.get('window');
-const GRID_CELL_SIZE = (width - 48) / 3; 
+const GRID_CELL_SIZE = (width - 48) / 3;
 
 interface Props {
   table: Table;
@@ -20,7 +19,7 @@ export const TableItem = ({ table, onPress }: Props) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = () => {
-    Animated.spring(scaleAnim, { toValue: 0.9, useNativeDriver: true }).start();
+    Animated.spring(scaleAnim, { toValue: 0.93, useNativeDriver: true }).start();
   };
 
   const handlePressOut = () => {
@@ -29,66 +28,86 @@ export const TableItem = ({ table, onPress }: Props) => {
   };
 
   // --- LOGIC HÌNH DÁNG ---
-  let borderRadius = 16;
-  let heightRatio = 1; 
+  let borderRadius = 18;
+  let heightRatio = 1;
   let iconName = 'table-furniture';
 
-  // [SỬA] Logic kiểm tra an toàn hơn: (table.width ?? 0)
-  // Nếu DB trả về null thì coi như là 0
   const isRectangle = table.shape === 'RECTANGLE' || ((table.width ?? 0) > (table.height ?? 0));
 
   if (table.shape === 'CIRCLE') {
-    borderRadius = GRID_CELL_SIZE / 2; 
-    iconName = 'record-circle-outline'; 
-  } else if (isRectangle) { 
-    borderRadius = 8;
-    heightRatio = 0.65; 
+    borderRadius = GRID_CELL_SIZE / 2;
+    iconName = 'record-circle-outline';
+  } else if (isRectangle) {
+    borderRadius = 12;
+    heightRatio = 0.65;
   }
 
   // --- LOGIC TRẠNG THÁI ---
   const isOccupied = table.status === 'OCCUPIED';
-  const bgColor = isOccupied ? '#FFEBEE' : '#FFFFFF';
-  const borderColor = isOccupied ? Colors.red : '#E0E0E0';
-  const iconColor = isOccupied ? Colors.red : '#9E9E9E';
+  const isCleaning = table.status === 'CLEANING';
 
-  if (isOccupied) iconName = 'account-group';
+  // Màu nền ấm, hòa vào nền chung
+  let bgColor = '#ffffffff';       // Bàn trống - be ấm (giống ProductItem)
+  let borderColor = '#C8D6C2';   // Viền xanh rất nhạt cho bàn trống
+  let iconColor = '#A09B94';
+  let nameColor = '#6B6560';
+  let badgeColor = '#8DB580';    // Xanh nhẹ
+
+  if (isOccupied) {
+    bgColor = '#ffffffff';         // Hồng be rất nhạt
+    borderColor = '#db523dff';     // Viền hồng nâu rất nhạt
+    iconName = 'account-group';
+    iconColor = '#db523dff';
+    nameColor = '#8B5E55';
+    badgeColor = '#db523dff';      // Đỏ nâu nhẹ
+  }
+
+  if (isCleaning) {
+    bgColor = '#ffffffff';
+    borderColor = '#dcb749ff';
+    iconName = 'broom';
+    iconColor = '#dcb749ff';
+    nameColor = '#8A8378';
+    badgeColor = '#dcb749ff';
+  }
 
   return (
-    <TouchableWithoutFeedback 
-      onPressIn={handlePressIn} 
+    <TouchableWithoutFeedback
+      onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      delayPressIn={150} 
+      delayPressIn={150}
     >
       <View style={styles.gridCellWrapper}>
         <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-          <Surface style={[
-            styles.surfaceTable, 
-            { 
-              backgroundColor: bgColor, 
+          <View style={[
+            styles.tableCard,
+            {
+              backgroundColor: bgColor,
               borderColor: borderColor,
               borderRadius: borderRadius,
               height: GRID_CELL_SIZE * heightRatio,
               width: GRID_CELL_SIZE,
             }
-          ]} elevation={isOccupied ? 4 : 1}>
-            
+          ]}>
+
+            {/* Badge trạng thái - nhỏ và tinh tế */}
             <View style={[
-              styles.badge, 
-              { backgroundColor: isOccupied ? Colors.red : Colors.green }
+              styles.badge,
+              { backgroundColor: badgeColor }
             ]} />
 
-            <View style={{alignItems: 'center'}}>
-               <MaterialCommunityIcons name={iconName as any} size={28} color={iconColor} />
-               
-               <Text variant="labelMedium" style={[
-                  styles.tableName, 
-                  { color: isOccupied ? Colors.red : '#555' }
-                ]} numberOfLines={1}>
-                  {table.table_name}
-               </Text>
+            <View style={{ alignItems: 'center' }}>
+              <MaterialCommunityIcons name={iconName as any} size={24} color={iconColor} />
+
+              <Text style={[
+                styles.tableName,
+                { color: nameColor }
+              ]} numberOfLines={1}>
+                {table.table_name}
+              </Text>
             </View>
 
-          </Surface>
+          </View>
         </Animated.View>
       </View>
     </TouchableWithoutFeedback>
@@ -98,30 +117,35 @@ export const TableItem = ({ table, onPress }: Props) => {
 const styles = StyleSheet.create({
   gridCellWrapper: {
     width: GRID_CELL_SIZE,
-    height: GRID_CELL_SIZE, 
+    height: GRID_CELL_SIZE,
     justifyContent: 'center',
     alignItems: 'center',
     marginVertical: 8,
   },
-  surfaceTable: {
+  tableCard: {
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1.5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    // Đường viền mảnh thiệt mảnh - chỉ đủ phát hiện
+    borderWidth: 0.7,
+    // Shadow cực nhẹ, hòa nền
+    shadowColor: '#8D6E63',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
   },
   tableName: {
-    fontWeight: 'bold',
-    marginTop: 4,
+    fontWeight: '600',
+    marginTop: 5,
+    fontSize: 12,
+    letterSpacing: -0.2,
   },
   badge: {
     position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  }
+    top: 7,
+    right: 7,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
 });

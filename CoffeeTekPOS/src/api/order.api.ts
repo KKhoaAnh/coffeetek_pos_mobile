@@ -9,7 +9,7 @@ const generateOrderCode = () => {
 
 export const orderApi = {
   createOrder: (tableId: number, userId: number, items: CartItem[], totalAmount: number) => {
-    
+
     const formattedItems = items.map(item => ({
       product_id: item.product.product_id,
       product_name: item.product.product_name,
@@ -17,13 +17,13 @@ export const orderApi = {
       quantity: item.quantity,
       total_line_amount: item.totalPrice,
       note: item.note || '',
-      
+
       modifiers: item.modifiers.map(mod => ({
-        id: mod.modifier_id,      
-        name: mod.modifier_name,  
-        extraPrice: mod.extra_price, 
-        userInput: null,           
-        quantity: 1               
+        id: mod.modifier_id,
+        name: mod.modifier_name,
+        extraPrice: mod.extra_price,
+        userInput: null,
+        quantity: 1
       }))
     }));
 
@@ -36,7 +36,7 @@ export const orderApi = {
       total_amount: totalAmount,
       discount_amount: 0,
       tax_amount: 0,
-      note: '', 
+      note: '',
       created_by_user_id: userId,
       items: formattedItems
     };
@@ -54,32 +54,35 @@ export const orderApi = {
   },
 
   completeOrder: (
-      orderId: number, 
-      paymentMethod: string, 
-      userId: number,
-      discountAmount: number, // Tiền giảm giá
-      finalAmount: number,    // Tiền khách phải trả sau giảm
-      customerPay: number     // Tiền khách đưa (Lưu vào note hoặc field riêng nếu backend hỗ trợ, tạm thời ta chỉ gửi để log)
+    orderId: number,
+    paymentMethod: string,
+    userId: number,
+    discountAmount: number, // Tiền giảm giá
+    finalAmount: number,    // Tiền khách phải trả sau giảm
+    customerPay: number,    // Tiền khách đưa
+    originalTotal: number   // [FIX] Tổng tiền gốc trước giảm
   ) => {
     return axiosClient.put(`/orders/${orderId}`, {
-        status: 'COMPLETED',
-        payment_status: 'PAID',
-        table_id: null,
-        order_type: 'DINE_IN',
-        created_by_user_id: userId,
-        
-        // Cập nhật các trường tài chính
-        total_amount: finalAmount,      // Cập nhật tổng tiền cuối cùng
-        discount_amount: discountAmount,
-        note: `Khách đưa: ${customerPay}` // Lưu tạm vào note nếu DB chưa có cột customer_pay
+      status: 'COMPLETED',
+      payment_status: 'PAID',
+      table_id: null,
+      order_type: 'DINE_IN',
+      created_by_user_id: userId,
+
+      // [FIX] total_amount = tổng tiền gốc (trước giảm)
+      // Để báo cáo tính đúng: net_revenue = total_amount - discount_amount
+      total_amount: originalTotal,
+      discount_amount: discountAmount,
+      final_amount: finalAmount,
+      note: `Khách đưa: ${customerPay}`
     });
   },
-  
+
   cleanTable: (tableId: number) => {
-      return axiosClient.put(`/tables/${tableId}/clear`);
+    return axiosClient.put(`/tables/${tableId}/clear`);
   },
 
   printOrder: (orderId: number) => {
-      return axiosClient.post(`/orders/${orderId}/print`);
+    return axiosClient.post(`/orders/${orderId}/print`);
   }
 };

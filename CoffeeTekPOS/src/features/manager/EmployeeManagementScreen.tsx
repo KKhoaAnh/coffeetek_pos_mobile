@@ -9,8 +9,6 @@ import {
 } from 'react-native';
 import {
   Text,
-  Surface,
-  IconButton,
   Switch,
   FAB,
   TextInput,
@@ -26,7 +24,6 @@ import { ManagerHeader } from '../../components/ManagerHeader';
 import { Colors } from '../../constants/app.constant';
 import { managerApi } from '../../api/manager.api';
 
-const TAB_BAR_HEIGHT = 60;
 const FAB_OFFSET = 16;
 
 export const EmployeeManagementScreen = () => {
@@ -103,88 +100,85 @@ export const EmployeeManagementScreen = () => {
       setPin('');
       setRole('staff');
     }
+    setIsPinVisible(false);
     setVisible(true);
   };
 
   const fabBottom = FAB_OFFSET + insets.bottom;
-
   const listPaddingBottom = fabBottom + 56;
 
   const renderItem = ({ item }: { item: any }) => {
     const active = Boolean(item.is_active);
     const isManager = item.role === 'manager';
     return (
-      <Surface
-        style={[styles.card, !active && styles.cardInactive]}
-        elevation={2}
+      <TouchableOpacity
+        style={styles.gridItem}
+        activeOpacity={0.8}
+        onPress={() => openModal(item)}
       >
-        <View
-          style={[
-            styles.avatarCircle,
-            { backgroundColor: active ? Colors.primary + '18' : '#EEF2F4' },
-          ]}
-        >
-          <Text
+        <View style={[styles.card, !active && styles.cardInactive]}>
+          {/* Avatar */}
+          <View
             style={[
-              styles.avatarText,
-              { color: active ? Colors.primary : '#94A3B8' },
+              styles.avatarCircle,
+              { backgroundColor: active ? '#E6DDD8' : '#E8E4DF' },
             ]}
           >
-            {(item.fullName || '?').charAt(0).toUpperCase()}
-          </Text>
-        </View>
-
-        <View style={styles.cardBody}>
-          <Text
-            variant="titleMedium"
-            style={[styles.cardTitle, !active && styles.cardTitleInactive]}
-            numberOfLines={1}
-          >
-            {item.fullName || 'Chưa đặt tên'}
-          </Text>
-          <View style={styles.roleRow}>
-            <View
+            <Text
               style={[
-                styles.roleTag,
-                { backgroundColor: isManager ? Colors.primary + '18' : '#F1F5F9' },
+                styles.avatarText,
+                { color: active ? '#8D6E63' : '#B5AEA7' },
               ]}
             >
-              <Text
+              {(item.fullName || '?').charAt(0).toUpperCase()}
+            </Text>
+          </View>
+
+          {/* Info */}
+          <View style={styles.cardBody}>
+            <Text
+              variant="titleMedium"
+              style={[styles.cardTitle, !active && styles.cardTitleInactive]}
+              numberOfLines={1}
+            >
+              {item.fullName || 'Chưa đặt tên'}
+            </Text>
+            <View style={styles.roleRow}>
+              <View
                 style={[
-                  styles.roleText,
-                  { color: isManager ? Colors.primary : '#64748B' },
+                  styles.roleTag,
+                  { backgroundColor: isManager ? '#E6DDD8' : '#ECEAE6' },
                 ]}
               >
-                {isManager ? 'Quản lý' : 'Nhân viên'}
-              </Text>
+                <Text
+                  style={[
+                    styles.roleText,
+                    { color: isManager ? '#8D6E63' : '#8A8580' },
+                  ]}
+                >
+                  {isManager ? 'Quản lý' : 'Nhân viên'}
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        <View style={styles.actionsWrap}>
+          {/* Switch only - no edit button */}
           <View style={styles.switchWrap}>
             <Switch
               value={active}
               onValueChange={() => handleToggleStatus(item)}
-              color={Colors.primary}
+              color={'#8D6E63'}
             />
           </View>
-          <IconButton
-            icon="pencil"
-            size={22}
-            iconColor="#64748B"
-            onPress={() => openModal(item)}
-            style={styles.editBtn}
-          />
         </View>
-      </Surface>
+      </TouchableOpacity>
     );
   };
 
   return (
     <View style={styles.container}>
       <ManagerHeader
-        title="Quản lý Nhân sự"
+        title="Quản lý nhân sự"
         subtitle="Danh sách nhân viên"
       />
 
@@ -213,7 +207,7 @@ export const EmployeeManagementScreen = () => {
           contentContainerStyle={styles.modal}
         >
           <Text variant="headlineSmall" style={styles.modalTitle}>
-            {editingEmp ? 'Sửa Nhân Viên' : 'Thêm Nhân Viên'}
+            {editingEmp ? 'Cập nhật nhân sự' : 'Thêm nhân sự mới'}
           </Text>
 
           <TextInput
@@ -222,7 +216,14 @@ export const EmployeeManagementScreen = () => {
             onChangeText={setFullName}
             mode="outlined"
             style={styles.input}
-            activeOutlineColor={Colors.primary}
+            activeOutlineColor="#8D6E63"
+            outlineColor="#DDD9D3"
+            textColor="#4A4540"
+            theme={{
+              colors: {
+                onSurfaceVariant: '#A09B94',
+              }
+            }}
           />
 
           <TextInput
@@ -234,11 +235,19 @@ export const EmployeeManagementScreen = () => {
             keyboardType="numeric"
             maxLength={6}
             style={styles.input}
-            activeOutlineColor={Colors.primary}
+            activeOutlineColor="#8D6E63"
+            outlineColor="#DDD9D3"
+            textColor="#4A4540"
+            theme={{
+              colors: {
+                onSurfaceVariant: '#A09B94',
+              }
+            }}
             right={
               <TextInput.Icon
                 icon={isPinVisible ? 'eye-off' : 'eye'}
                 onPress={() => setIsPinVisible(!isPinVisible)}
+                color="#A09B94"
               />
             }
           />
@@ -248,20 +257,45 @@ export const EmployeeManagementScreen = () => {
             value={role}
             onValueChange={setRole}
             buttons={[
-              { value: 'cashier', label: 'Nhân viên' },
-              { value: 'manager', label: 'Quản lý' },
+              {
+                value: 'cashier', label: 'Nhân viên',
+                checkedColor: '#FFF', uncheckedColor: '#6B6560',
+                style: role === 'cashier' ? styles.segBtnActive : styles.segBtnInactive
+              },
+              {
+                value: 'manager', label: 'Quản lý',
+                checkedColor: '#FFF', uncheckedColor: '#6B6560',
+                style: role === 'manager' ? styles.segBtnActive : styles.segBtnInactive
+              },
             ]}
             style={styles.segmented}
+            theme={{
+              colors: {
+                secondaryContainer: '#8D6E63',
+                onSecondaryContainer: '#FFF',
+                outline: '#DDD9D3',
+              }
+            }}
           />
 
-          <Button
-            mode="contained"
-            onPress={handleSave}
-            style={styles.saveBtn}
-            contentStyle={styles.saveBtnContent}
-          >
-            Lưu lại
-          </Button>
+          <View style={styles.modalActions}>
+            <Button
+              mode="text"
+              onPress={() => setVisible(false)}
+              textColor="#A09B94"
+              style={{ flex: 1, marginRight: 8 }}
+            >
+              Hủy
+            </Button>
+            <Button
+              mode="contained"
+              onPress={handleSave}
+              style={styles.saveBtn}
+              contentStyle={styles.saveBtnContent}
+            >
+              Lưu thay đổi
+            </Button>
+          </View>
         </Modal>
       </Portal>
     </View>
@@ -269,23 +303,23 @@ export const EmployeeManagementScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F2F4F8' },
+  container: { flex: 1, backgroundColor: '#F4F3F1' },
   listContent: { padding: 16 },
+  gridItem: { marginBottom: 10 },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: 14,
     borderRadius: 18,
-    backgroundColor: '#FFF',
-    marginBottom: 12,
-    minHeight: 80,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 2,
+    backgroundColor: '#ffffffff',
+    minHeight: 76,
+    shadowColor: '#8D6E63',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
   },
-  cardInactive: { opacity: 0.85, backgroundColor: '#F8FAFC' },
+  cardInactive: { opacity: 0.75, backgroundColor: '#EAE7E3' },
   avatarCircle: {
     width: 48,
     height: 48,
@@ -294,49 +328,58 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 14,
   },
-  avatarText: { fontWeight: '700', fontSize: 18 },
+  avatarText: { fontWeight: '700', fontSize: 17 },
   cardBody: { flex: 1, minWidth: 0, justifyContent: 'center' },
-  cardTitle: { fontWeight: '700', fontSize: 16, color: '#2D3748' },
-  cardTitleInactive: { color: '#94A3B8' },
-  roleRow: { flexDirection: 'row', marginTop: 6 },
+  cardTitle: { fontWeight: '600', fontSize: 15, color: '#4A4540' },
+  cardTitleInactive: { color: '#B5AEA7' },
+  roleRow: { flexDirection: 'row', marginTop: 5 },
   roleTag: {
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 3,
     borderRadius: 8,
     alignSelf: 'flex-start',
   },
-  roleText: { fontSize: 12, fontWeight: '600' },
-  actionsWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+  roleText: { fontSize: 11, fontWeight: '600' },
   switchWrap: {
     justifyContent: 'center',
     alignItems: 'center',
     alignSelf: 'stretch',
-    marginLeft: 4,
+    marginLeft: 8,
   },
-  editBtn: { margin: 0 },
   fab: {
     position: 'absolute',
     right: 16,
-    backgroundColor: Colors.primary,
+    backgroundColor: '#8D6E63',
+    borderRadius: 28,
   },
   modal: {
-    backgroundColor: '#FFF',
+    backgroundColor: '#FAF9F7',
     padding: 24,
     margin: 20,
     borderRadius: 20,
+    shadowColor: '#8D6E63',
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
   },
   modalTitle: {
     textAlign: 'center',
     marginBottom: 20,
     fontWeight: '700',
-    color: Colors.primary,
+    color: '#5D4037',
   },
-  input: { marginBottom: 16, backgroundColor: '#FFF' },
-  label: { marginBottom: 10, fontWeight: '600', color: '#475569', fontSize: 14 },
+  input: { marginBottom: 16, backgroundColor: '#FAF9F7' },
+  label: { marginBottom: 10, fontWeight: '600', color: '#6B6560', fontSize: 14 },
   segmented: { marginBottom: 20 },
-  saveBtn: { backgroundColor: Colors.primary, borderRadius: 12 },
+  segBtnActive: {
+    backgroundColor: '#8D6E63',
+    borderColor: '#8D6E63',
+  },
+  segBtnInactive: {
+    backgroundColor: 'transparent',
+    borderColor: '#DDD9D3',
+  },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 10 },
+  saveBtn: { backgroundColor: '#8D6E63', borderRadius: 14, flex: 1 },
   saveBtnContent: { height: 48 },
 });

@@ -1,16 +1,17 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { 
-  View, StyleSheet, ScrollView, Alert, RefreshControl, 
-  TouchableWithoutFeedback, Keyboard, Platform, KeyboardAvoidingView, 
-  Dimensions
+import {
+  View, StyleSheet, ScrollView, Alert, RefreshControl,
+  TouchableWithoutFeedback, Keyboard, Platform, KeyboardAvoidingView,
+  Dimensions, TouchableOpacity
 } from 'react-native';
-import { Text, Card, Button, TextInput, Modal, Portal, IconButton, Surface } from 'react-native-paper';
+import { Text, Card, Button, TextInput, Modal, Portal, IconButton, Switch } from 'react-native-paper';
 import { useAuthStore } from '../../store/auth.store';
 import { useShiftStore, Shift } from '../../store/shift.store';
 import { Colors } from '../../constants/app.constant';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { shiftApi } from '../../api/shift.api';
-import { ManagerHeader } from '../../components/ManagerHeader'; // Import mới
+import { ManagerHeader } from '../../components/ManagerHeader';
+import { formatCurrency } from '../../utils/format';
 
 const { width } = Dimensions.get('window');
 
@@ -23,7 +24,7 @@ const LiveTimer = ({ startTime }: { startTime: string }) => {
       const start = new Date(startTime).getTime();
       const now = new Date().getTime();
       const diff = now - start;
-      
+
       if (diff < 0) {
         setDuration("00:00:00");
         return;
@@ -36,7 +37,7 @@ const LiveTimer = ({ startTime }: { startTime: string }) => {
       const hStr = hours < 10 ? `0${hours}` : hours;
       const mStr = minutes < 10 ? `0${minutes}` : minutes;
       const sStr = seconds < 10 ? `0${seconds}` : seconds;
-      
+
       setDuration(`${hStr}:${mStr}:${sStr}`);
     }, 1000);
 
@@ -45,15 +46,25 @@ const LiveTimer = ({ startTime }: { startTime: string }) => {
 
   return (
     <View style={{ alignItems: 'center' }}>
-      <Text variant="labelSmall" style={{ color: Colors.red, fontWeight: 'bold', letterSpacing: 1, marginBottom: 5 }}>
+      <Text variant="labelSmall" style={{ color: '#B07A70', fontWeight: 'bold', letterSpacing: 1, marginBottom: 5 }}>
         CA ĐANG HOẠT ĐỘNG
       </Text>
-      <Text variant="displayMedium" style={{ color: Colors.red, fontWeight: 'bold', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }}>
+      <Text variant="displayMedium" style={{ color: '#8B5E55', fontWeight: 'bold', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }}>
         {duration}
       </Text>
     </View>
   );
 };
+
+// --- COMPONENT CON: STAT CARD NHỎ ---
+const StatMini = ({ icon, label, value, color }: { icon: string, label: string, value: string, color: string }) => (
+  <View style={styles.statMini}>
+    <MaterialCommunityIcons name={icon as any} size={20} color={color} />
+    <Text style={styles.statMiniLabel}>{label}</Text>
+    <Text style={[styles.statMiniValue, { color }]}>{value}</Text>
+  </View>
+);
+
 
 export const ShiftScreen = ({ navigation }: any) => {
   const user = useAuthStore(state => state.user);
@@ -64,6 +75,7 @@ export const ShiftScreen = ({ navigation }: any) => {
   const [moneyInput, setMoneyInput] = useState('');
   const [noteInput, setNoteInput] = useState('');
   const [summaryData, setSummaryData] = useState<any>(null);
+  const [sendEmail, setSendEmail] = useState(true);
 
   // Lấy ngày hôm nay định dạng dd/MM
   const todayStr = new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
@@ -77,6 +89,7 @@ export const ShiftScreen = ({ navigation }: any) => {
     setMoneyInput('');
     setNoteInput('');
     setSummaryData(null);
+    setSendEmail(true);
     setModalVisible(true);
 
     if (type === 'CLOSE' && currentShift) {
@@ -90,7 +103,7 @@ export const ShiftScreen = ({ navigation }: any) => {
   };
 
   const handleSubmit = async () => {
-    Keyboard.dismiss(); // Tắt phím trước khi xử lý
+    Keyboard.dismiss();
     if (!moneyInput) {
       Alert.alert("Thiếu thông tin", "Vui lòng nhập số tiền");
       return;
@@ -102,10 +115,16 @@ export const ShiftScreen = ({ navigation }: any) => {
     if (modalType === 'OPEN') {
       success = await openShift(user!.id, amount, noteInput);
     } else {
-      const result = await closeShift(amount, noteInput);
+      const result = await closeShift(amount, noteInput, sendEmail);
       if (result) {
         success = true;
-        Alert.alert("Thành công", "Đã đóng ca và in phiếu kết ca!");
+        const emailMsg = sendEmail
+          ? "\n📧 Báo cáo đã được gửi qua email!"
+          : "";
+        Alert.alert(
+          "✅ Đóng ca thành công",
+          `Ca làm việc đã kết thúc.${emailMsg}`
+        );
       }
     }
 
@@ -114,85 +133,84 @@ export const ShiftScreen = ({ navigation }: any) => {
 
   const renderShiftItem = (shift: Shift) => {
     const isOpen = shift.status === 'OPEN';
-    const startFmt = new Date(shift.start_time).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'});
-    // Nếu chưa đóng thì hiện '...', đóng rồi thì hiện giờ đóng
-    const endFmt = shift.end_time 
-      ? new Date(shift.end_time).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}) 
+    const startFmt = new Date(shift.start_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    const endFmt = shift.end_time
+      ? new Date(shift.end_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
       : '...';
 
     return (
-      <Surface style={[styles.historyCard, isOpen && styles.activeHistoryCard]} key={shift.shift_id} elevation={2}>
+      <View style={[styles.historyCard, isOpen && styles.activeHistoryCard]} key={shift.shift_id}>
         <View style={styles.historyLeft}>
-          <MaterialCommunityIcons 
-            name={isOpen ? "clock-time-four-outline" : "check-circle"} 
-            size={24} 
-            color={isOpen ? Colors.green : Colors.secondary} 
+          <MaterialCommunityIcons
+            name={isOpen ? "clock-time-four-outline" : "check-circle"}
+            size={22}
+            color={isOpen ? '#8DB580' : '#A09B94'}
           />
           <View style={{ marginLeft: 12 }}>
-            <Text variant="titleSmall" style={{ fontWeight: 'bold', color: isOpen ? Colors.green : '#555' }}>
+            <Text variant="titleSmall" style={{ fontWeight: '600', color: isOpen ? '#6B8F5E' : '#6B6560' }}>
               {isOpen ? "ĐANG MỞ" : "ĐÃ ĐÓNG"}
             </Text>
-            <Text variant="bodySmall" style={{ color: '#888' }}>
-              Bắt đầu: {shift.initial_float.toLocaleString('vi-VN')} đ
+            <Text variant="bodySmall" style={{ color: '#A09B94' }}>
+              Đầu ca: {formatCurrency(shift.initial_float)}
             </Text>
           </View>
         </View>
 
         <View style={styles.historyRight}>
-          <Text variant="titleMedium" style={{ fontWeight: 'bold' }}>
+          <Text variant="titleMedium" style={{ fontWeight: '600', color: '#4A4540' }}>
             {startFmt} - {endFmt}
           </Text>
           {!isOpen && (
-            <Text variant="bodySmall" style={{ color: Colors.primary, fontWeight: 'bold', alignSelf: 'flex-end' }}>
-              +{shift.total_cash_sales?.toLocaleString('vi-VN')} đ
+            <Text variant="bodySmall" style={{ color: '#6D4C41', fontWeight: 'bold', alignSelf: 'flex-end' }}>
+              +{formatCurrency(shift.total_cash_sales || 0)}
             </Text>
           )}
         </View>
-      </Surface>
+      </View>
     );
   };
 
   return (
     <View style={styles.container}>
-      {/* Header cong mềm mại */}
-      <ManagerHeader 
-      title="Quản Lý Ca" 
-      subtitle={`Xin chào, ${user?.fullName ?? 'Nhân viên'}`}
-      showAvatar={true}
-      userInitial={user?.fullName.charAt(0)}
-    />
+      {/* Header */}
+      <ManagerHeader
+        title="Ca làm việc"
+        subtitle={`Xin chào, ${user?.fullName ?? 'Nhân viên'}`}
+        showAvatar={true}
+        userInitial={user?.fullName.charAt(0)}
+      />
 
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={() => user && loadTodayShifts(user.id)} />}
         showsVerticalScrollIndicator={false}
       >
         {/* --- KHU VỰC TRẠNG THÁI CA (HERO SECTION) --- */}
-        <Surface style={styles.heroCard} elevation={4}>
+        <View style={styles.heroCard}>
           {currentShift ? (
             // TRẠNG THÁI: ĐANG MỞ
             <View style={styles.activeShiftContainer}>
               <LiveTimer startTime={currentShift.start_time} />
-              
+
               <View style={styles.activeInfoRow}>
                 <View style={styles.infoItem}>
-                   <Text style={styles.infoLabel}>Bắt đầu lúc</Text>
-                   <Text style={styles.infoValue}>
-                     {new Date(currentShift.start_time).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}
-                   </Text>
+                  <Text style={styles.infoLabel}>Bắt đầu lúc</Text>
+                  <Text style={styles.infoValue}>
+                    {new Date(currentShift.start_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
                 </View>
                 <View style={styles.verticalDivider} />
                 <View style={styles.infoItem}>
-                   <Text style={styles.infoLabel}>Tiền đầu ca</Text>
-                   <Text style={styles.infoValue}>{currentShift.initial_float.toLocaleString()} đ</Text>
+                  <Text style={styles.infoLabel}>Tiền đầu ca</Text>
+                  <Text style={styles.infoValue}>{formatCurrency(currentShift.initial_float)}</Text>
                 </View>
               </View>
 
-              <Button 
-                mode="contained" 
-                onPress={() => handleOpenModal('CLOSE')} 
+              <Button
+                mode="contained"
+                onPress={() => handleOpenModal('CLOSE')}
                 style={styles.closeBtn}
-                contentStyle={{height: 48}}
+                contentStyle={{ height: 48 }}
                 icon="stop-circle-outline"
               >
                 KẾT THÚC CA
@@ -202,113 +220,155 @@ export const ShiftScreen = ({ navigation }: any) => {
             // TRẠNG THÁI: CHƯA MỞ CA
             <View style={styles.inactiveShiftContainer}>
               <View style={styles.iconCircle}>
-                <MaterialCommunityIcons name="store-clock-outline" size={50} color={Colors.white} />
+                <MaterialCommunityIcons name="store-clock-outline" size={44} color={Colors.white} />
               </View>
-              <Text variant="titleLarge" style={{ fontWeight: 'bold', color: Colors.primary, marginTop: 15 }}>
+              <Text variant="titleLarge" style={{ fontWeight: 'bold', color: '#5e5856ff', marginTop: 15 }}>
                 Chưa có ca làm việc
               </Text>
-              <Text style={{ color: '#888', textAlign: 'center', marginVertical: 10, paddingHorizontal: 20 }}>
+              <Text style={{ color: '#A09B94', textAlign: 'center', marginVertical: 10, paddingHorizontal: 20 }}>
                 Hãy mở ca mới để bắt đầu nhận đơn hàng và quản lý doanh thu.
               </Text>
-              <Button 
-                mode="contained" 
-                onPress={() => handleOpenModal('OPEN')} 
+              <Button
+                mode="contained"
+                onPress={() => handleOpenModal('OPEN')}
                 style={styles.openBtn}
-                contentStyle={{height: 50}}
-                labelStyle={{fontSize: 16, fontWeight: 'bold'}}
+                contentStyle={{ height: 50 }}
+                labelStyle={{ fontSize: 16, fontWeight: 'bold' }}
                 icon="play-circle-outline"
               >
                 BẮT ĐẦU CA MỚI
               </Button>
             </View>
           )}
-        </Surface>
+        </View>
 
         {/* --- DANH SÁCH LỊCH SỬ --- */}
         <View style={styles.sectionHeader}>
-          <Text variant="titleMedium" style={{ fontWeight: 'bold', color: '#444' }}>
+          <Text variant="titleMedium" style={{ fontWeight: '700', color: '#4A4540', letterSpacing: -0.3 }}>
             LỊCH SỬ HÔM NAY
           </Text>
           <View style={styles.dateBadge}>
-            <MaterialCommunityIcons name="calendar-today" size={14} color={Colors.white} />
-            <Text style={{ color: Colors.white, marginLeft: 5, fontWeight: 'bold', fontSize: 12 }}>
+            <MaterialCommunityIcons name="calendar-today" size={13} color={Colors.white} />
+            <Text style={{ color: Colors.white, marginLeft: 5, fontWeight: '600', fontSize: 11 }}>
               {todayStr}
             </Text>
           </View>
         </View>
 
         {todayShifts.map(renderShiftItem)}
-        
+
         {todayShifts.length === 0 && (
           <View style={styles.emptyState}>
-            <MaterialCommunityIcons name="history" size={40} color="#DDD" />
-            <Text style={{ color: '#BBB', marginTop: 10 }}>Chưa có dữ liệu ca hôm nay</Text>
+            <MaterialCommunityIcons name="history" size={36} color="#D5CFC9" />
+            <Text style={{ color: '#A09B94', marginTop: 10 }}>Chưa có dữ liệu ca hôm nay</Text>
           </View>
         )}
       </ScrollView>
 
-      {/* --- MODAL NHẬP LIỆU (Đã xử lý bàn phím) --- */}
+      {/* --- MODAL NHẬP LIỆU --- */}
       <Portal>
         <Modal visible={modalVisible} onDismiss={() => setModalVisible(false)} contentContainerStyle={styles.modalWrapper}>
-          {/* TouchableWithoutFeedback để đóng phím khi chạm ra ngoài input */}
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <MaterialCommunityIcons name={modalType === 'OPEN' ? "play-box-outline" : "stop-circle-outline"} size={28} color={modalType === 'OPEN' ? Colors.green : Colors.red} />
-                <Text variant="headlineSmall" style={{ fontWeight: 'bold', marginLeft: 10, color: modalType === 'OPEN' ? Colors.green : Colors.red }}>
-                  {modalType === 'OPEN' ? "MỞ CA MỚI" : "ĐÓNG CA"}
+            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+              <View style={styles.modalContent}>
+                <Text variant="headlineSmall" style={styles.modalTitle}>
+                  {modalType === 'OPEN' ? 'Mở ca mới' : 'Đóng ca làm việc'}
                 </Text>
-              </View>
 
-              {modalType === 'CLOSE' && summaryData && (
-                <View style={styles.summaryBox}>
-                  <View style={styles.rowBetween}>
-                    <Text style={{color: '#666'}}>Hệ thống tính:</Text>
-                    <Text style={{fontWeight:'bold', fontSize: 16}}>{summaryData.expected_cash?.toLocaleString('vi-VN')} đ</Text>
+                {/* SUMMARY KHI ĐÓNG CA */}
+                {modalType === 'CLOSE' && summaryData && (
+                  <View style={styles.summaryBox}>
+                    <View style={styles.statsRow}>
+                      <StatMini icon="receipt" label="Đơn hàng" value={`${summaryData.total_orders || 0}`} color="#8D6E63" />
+                      <StatMini icon="food" label="Món bán" value={`${summaryData.total_items_sold || 0}`} color="#6B8F5E" />
+                    </View>
+
+                    <View style={styles.summaryDivider} />
+
+                    <View style={styles.rowBetween}>
+                      <Text style={{ color: '#6B6560' }}>Doanh thu tiền mặt:</Text>
+                      <Text style={{ fontWeight: 'bold', color: '#6B8F5E' }}>+{formatCurrency(summaryData.total_cash_sales || 0)}</Text>
+                    </View>
+                    <View style={styles.rowBetween}>
+                      <Text style={{ color: '#6B6560' }}>Doanh thu CK:</Text>
+                      <Text style={{ fontWeight: 'bold', color: '#5D8FAD' }}>+{formatCurrency(summaryData.total_transfer_sales || 0)}</Text>
+                    </View>
+
+                    <View style={styles.summaryDivider} />
+
+                    <View style={styles.rowBetween}>
+                      <Text style={{ fontWeight: 'bold', color: '#4A4540' }}>Tổng doanh thu:</Text>
+                      <Text style={{ fontWeight: 'bold', fontSize: 18, color: '#5D4037' }}>
+                        {formatCurrency(summaryData.total_all_sales || 0)}
+                      </Text>
+                    </View>
+
+                    <View style={styles.summaryDivider} />
+
+                    <View style={styles.rowBetween}>
+                      <Text style={{ color: '#6B6560' }}>Hệ thống kỳ vọng (két):</Text>
+                      <Text style={{ fontWeight: 'bold', color: '#4A4540' }}>{formatCurrency(summaryData.expected_cash || 0)}</Text>
+                    </View>
                   </View>
-                  <MaterialCommunityIcons style={{marginVertical: 8}}/>
-                  <View style={styles.rowBetween}>
-                    <Text style={{color: '#666'}}>Doanh thu TM:</Text>
-                    <Text style={{color: Colors.green, fontWeight:'bold'}}>+{summaryData.total_cash_sales?.toLocaleString('vi-VN')} đ</Text>
+                )}
+
+                <TextInput
+                  label={modalType === 'OPEN' ? 'Tiền đầu ca' : 'Tiền thực tế trong két'}
+                  value={moneyInput}
+                  onChangeText={setMoneyInput}
+                  keyboardType="numeric"
+                  mode="outlined"
+                  style={styles.input}
+                  outlineColor="#DDD9D3"
+                  activeOutlineColor="#8D6E63"
+                  textColor="#4A4540"
+                  right={<TextInput.Affix text="VNĐ" />}
+                  theme={{ colors: { onSurfaceVariant: '#A09B94' } }}
+                />
+
+                <TextInput
+                  label="Ghi chú (Tùy chọn)"
+                  value={noteInput}
+                  onChangeText={setNoteInput}
+                  mode="outlined"
+                  style={styles.input}
+                  outlineColor="#DDD9D3"
+                  activeOutlineColor="#8D6E63"
+                  textColor="#4A4540"
+                  multiline
+                  theme={{ colors: { onSurfaceVariant: '#A09B94' } }}
+                />
+
+                {/* Toggle gửi email (chỉ khi đóng ca) */}
+                {modalType === 'CLOSE' && (
+                  <View style={styles.emailToggle}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontWeight: '600', color: '#4A4540' }}>📧 Gửi báo cáo qua Email</Text>
+                      <Text style={{ fontSize: 12, color: '#A09B94', marginTop: 2 }}>
+                        Tự động gửi bảng kết ca về email quản lý
+                      </Text>
+                    </View>
+                    <Switch
+                      value={sendEmail}
+                      onValueChange={setSendEmail}
+                      color={'#8D6E63'}
+                    />
                   </View>
+                )}
+
+                <View style={styles.modalActions}>
+                  <Button mode="text" onPress={() => setModalVisible(false)} textColor="#A09B94" style={{ flex: 1, marginRight: 8 }}>Hủy</Button>
+                  <Button
+                    mode="contained"
+                    onPress={handleSubmit}
+                    loading={isLoading}
+                    style={styles.modalSubmitBtn}
+                  >
+                    Xác nhận
+                  </Button>
                 </View>
-              )}
-
-              <TextInput
-                label={modalType === 'OPEN' ? "Tiền đầu ca" : "Tiền thực tế trong két"}
-                value={moneyInput}
-                onChangeText={setMoneyInput}
-                keyboardType="numeric"
-                mode="outlined"
-                style={styles.input}
-                outlineColor="#DDD"
-                activeOutlineColor={Colors.primary}
-                right={<TextInput.Affix text="VNĐ" />}
-              />
-
-              <TextInput
-                label="Ghi chú (Tùy chọn)"
-                value={noteInput}
-                onChangeText={setNoteInput}
-                mode="outlined"
-                style={styles.input}
-                outlineColor="#DDD"
-                activeOutlineColor={Colors.primary}
-                multiline
-              />
-
-              <View style={styles.modalActions}>
-                <Button mode="text" onPress={() => setModalVisible(false)} textColor="#888">Hủy bỏ</Button>
-                <Button 
-                  mode="contained" 
-                  onPress={handleSubmit} 
-                  loading={isLoading} 
-                  style={{ backgroundColor: modalType === 'OPEN' ? Colors.green : Colors.red, flex: 1, marginLeft: 10 }}
-                >
-                  XÁC NHẬN
-                </Button>
               </View>
-            </View>
+            </ScrollView>
           </TouchableWithoutFeedback>
         </Modal>
       </Portal>
@@ -317,50 +377,83 @@ export const ShiftScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FA' },
+  container: { flex: 1, backgroundColor: '#F4F3F1' },
 
   heroCard: {
     marginTop: 10,
-    borderRadius: 16,
-    backgroundColor: Colors.white,
+    borderRadius: 20,
+    backgroundColor: '#EFECE8',
     marginBottom: 20,
-    overflow: 'hidden'
+    overflow: 'hidden',
+    // Shadow cực nhẹ
+    shadowColor: '#8D6E63',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
   },
-  inactiveShiftContainer: { padding: 30, alignItems: 'center' },
+  inactiveShiftContainer: { padding: 28, alignItems: 'center' },
   iconCircle: {
-    width: 80, height: 80, borderRadius: 40, backgroundColor: Colors.primary,
+    width: 72, height: 72, borderRadius: 36, backgroundColor: '#8D6E63',
     justifyContent: 'center', alignItems: 'center',
-    elevation: 5, shadowColor: Colors.primary, shadowOpacity: 0.3, shadowOffset: {width:0, height:4}
+    shadowColor: '#8D6E63', shadowOpacity: 0.15, shadowOffset: { width: 0, height: 3 }, shadowRadius: 8,
+    elevation: 2,
   },
-  openBtn: { borderRadius: 30, width: '100%', marginTop: 20, backgroundColor: Colors.primary },
-  
+  openBtn: { borderRadius: 28, width: '100%', marginTop: 20, backgroundColor: '#5D4037' },
+
   // Active Shift Styling
-  activeShiftContainer: { padding: 20, backgroundColor: '#FFF5F5', borderWidth: 1, borderColor: '#FFEBEE', borderRadius: 20 },
+  activeShiftContainer: {
+    padding: 20, backgroundColor: '#F0E6E4', borderWidth: 0.7, borderColor: '#D4A9A2', borderRadius: 20
+  },
   activeInfoRow: { flexDirection: 'row', justifyContent: 'space-around', marginVertical: 20 },
-  verticalDivider: { width: 1, height: '100%', backgroundColor: '#FFCDD2' },
+  verticalDivider: { width: 1, height: '100%', backgroundColor: '#D4C5C2' },
   infoItem: { alignItems: 'center' },
-  infoLabel: { color: '#888', fontSize: 12, marginBottom: 4 },
-  infoValue: { fontWeight: 'bold', fontSize: 16, color: '#333' },
-  closeBtn: { backgroundColor: Colors.red, borderRadius: 10 },
+  infoLabel: { color: '#A09B94', fontSize: 12, marginBottom: 4 },
+  infoValue: { fontWeight: '700', fontSize: 16, color: '#4A4540' },
+  closeBtn: { backgroundColor: '#C47B6F', borderRadius: 12 },
 
   // History List
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 5 },
-  dateBadge: { flexDirection: 'row', backgroundColor: Colors.secondary, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, alignItems: 'center' },
+  dateBadge: { flexDirection: 'row', backgroundColor: '#8D6E63', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, alignItems: 'center' },
   historyCard: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: 16, borderRadius: 12, backgroundColor: Colors.white, marginBottom: 12
+    padding: 14, borderRadius: 16, backgroundColor: '#EFECE8', marginBottom: 10,
+    shadowColor: '#8D6E63', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 6,
+    elevation: 1,
   },
-  activeHistoryCard: { borderWidth: 1, borderColor: Colors.green, backgroundColor: '#F1F8E9' },
+  activeHistoryCard: { borderWidth: 0.7, borderColor: '#B5CCB0', backgroundColor: '#ECF0E8' },
   historyLeft: { flexDirection: 'row', alignItems: 'center' },
   historyRight: { alignItems: 'flex-end' },
   emptyState: { alignItems: 'center', padding: 20 },
 
   // Modal
   modalWrapper: { padding: 20 },
-  modalContent: { backgroundColor: 'white', borderRadius: 15, padding: 24, elevation: 5 },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
-  summaryBox: { backgroundColor: '#F5F5F5', padding: 15, borderRadius: 10, marginBottom: 15 },
-  rowBetween: { flexDirection: 'row', justifyContent: 'space-between' },
-  input: { marginBottom: 15, backgroundColor: '#FFF' },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 10 }
+  modalScroll: {},
+  modalContent: { backgroundColor: '#FAF9F7', borderRadius: 20, padding: 24, elevation: 3, shadowColor: '#8D6E63', shadowOpacity: 0.08, shadowRadius: 12 },
+  modalTitle: { fontWeight: '700', color: '#5D4037', textAlign: 'center', marginBottom: 20 },
+
+  // Summary Box (đóng ca)
+  summaryBox: { backgroundColor: '#EFECE8', padding: 15, borderRadius: 16, marginBottom: 15 },
+  summaryDivider: { height: 0.7, backgroundColor: '#DDD9D3', marginVertical: 10 },
+  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-around' },
+  statMini: { alignItems: 'center', paddingVertical: 8, paddingHorizontal: 12 },
+  statMiniLabel: { fontSize: 11, color: '#A09B94', marginTop: 4 },
+  statMiniValue: { fontWeight: 'bold', fontSize: 18 },
+
+  // Email toggle
+  emailToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EEF1EB',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 0.7,
+    borderColor: '#D5DDD0',
+    marginBottom: 15
+  },
+
+  input: { marginBottom: 15, backgroundColor: '#FAF9F7' },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 10 },
+  modalSubmitBtn: { backgroundColor: '#8D6E63', borderRadius: 14, flex: 1 },
 });

@@ -1,96 +1,215 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { inventoryApi, InventoryItemDto, InventoryItemPayload, InventoryTransactionDto } from '../api/inventory.api';
 
-export type InventoryUnit = 'goi' | 'bich' | 'kg' | 'gam';
-
-export interface RawInventoryItem {
+export interface InventoryItem {
   id: string;
   name: string;
-  unit: InventoryUnit;
+  unit: string;               // Đơn vị cơ bản (lon, chai, kg...)
+  importUnit: string | null;   // Đơn vị nhập (Thùng, Bao, Lốc)
+  conversionFactor: number;    // 1 importUnit = ? unit
+  minStockLevel: number;       // Mức tối thiểu
+  linkedProductId: number | null;
+  linkedProductName: string | null;
   quantity: number;
-  icon?: string; // MaterialCommunityIcons name
+  isLowStock: boolean;
+  isActive: boolean;
 }
 
-const UNIT_LABELS: Record<InventoryUnit, string> = {
-  goi: 'Gói',
-  bich: 'Bịch',
-  kg: 'Kg',
-  gam: 'Gam',
+export interface InventoryTransaction {
+  id: number;
+  itemId: number;
+  itemName: string;
+  type: 'IMPORT' | 'EXPORT_MANUAL' | 'EXPORT_AUTO' | 'ADJUST';
+  quantity: number;
+  importUnit: string | null;
+  importQuantity: number | null;
+  stockAfter: number;
+  orderRef: number | null;
+  userName: string | null;
+  note: string | null;
+  createdAt: string;
+}
+
+// Label đơn vị cơ bản
+const UNIT_LABELS: Record<string, string> = {
+  goi: 'Gói', lon: 'Lon', chai: 'Chai', kg: 'Kg', gam: 'Gam',
+  hop: 'Hộp', cai: 'Cái', lit: 'Lít',
 };
 
-const DEFAULT_ITEMS: RawInventoryItem[] = [
-  { id: '1', name: 'Sữa tươi', unit: 'bich', quantity: 24, icon: 'cup' },
-  { id: '2', name: 'Sữa đặc', unit: 'bich', quantity: 12, icon: 'bottle-tonic-plus' },
-  { id: '3', name: 'Cà phê rang xay', unit: 'kg', quantity: 5, icon: 'coffee' },
-  { id: '4', name: 'Cà phê hòa tan', unit: 'goi', quantity: 20, icon: 'coffee-outline' },
-  { id: '5', name: 'Đường', unit: 'kg', quantity: 10, icon: 'sack-percent' },
-  { id: '6', name: 'Syrup', unit: 'bich', quantity: 8, icon: 'bottle-tonic' },
-  { id: '7', name: 'Trà sữa bột', unit: 'goi', quantity: 15, icon: 'tea' },
-  { id: '8', name: 'Kem béo', unit: 'bich', quantity: 6, icon: 'ice-cream' },
-];
+// Label đơn vị nhập
+const IMPORT_UNIT_LABELS: Record<string, string> = {
+  thung: 'Thùng', bao: 'Bao', loc: 'Lốc', ket: 'Két', binh: 'Bình',
+};
+
+// Label loại giao dịch
+const TYPE_LABELS: Record<string, string> = {
+  IMPORT: 'Nhập kho',
+  EXPORT_MANUAL: 'Xuất thủ công',
+  EXPORT_AUTO: 'Xuất tự động',
+  ADJUST: 'Điều chỉnh',
+};
 
 interface InventoryState {
-  items: RawInventoryItem[];
-  addItem: (item: Omit<RawInventoryItem, 'id'>) => boolean;
-  removeItem: (id: string) => void;
-  updateQuantity: (id: string, delta: number) => void;
-  setQuantity: (id: string, value: number) => void;
-  getUnitLabel: (unit: InventoryUnit) => string;
-  hasItemByName: (name: string) => boolean;
+  items: InventoryItem[];
+  lowStockItems: InventoryItem[];
+  loading: boolean;
+  error: string | null;
+
+  fetchItems: () => Promise<void>;
+  fetchLowStock: () => Promise<void>;
+  addItem: (payload: InventoryItemPayload) => Promise<boolean>;
+  updateItem: (id: string, payload: InventoryItemPayload) => Promise<boolean>;
+  importStock: (id: string, qty: number, useImportUnit: boolean, note: string, userId?: number) => Promise<string | null>;
+  exportStock: (id: string, qty: number, note: string, userId?: number) => Promise<string | null>;
+  getHistory: (id: string) => Promise<InventoryTransaction[]>;
+  getUnitLabel: (unit: string) => string;
+  getImportUnitLabel: (unit: string) => string;
+  getTypeLabel: (type: string) => string;
 }
 
-export const getUnitLabel = (unit: InventoryUnit) => UNIT_LABELS[unit];
+export const getUnitLabel = (unit: string) => UNIT_LABELS[unit] || unit;
+export const getImportUnitLabel = (unit: string) => IMPORT_UNIT_LABELS[unit] || unit;
+export const getTypeLabel = (type: string) => TYPE_LABELS[type] || type;
+
+const mapDtoToItem = (dto: InventoryItemDto): InventoryItem => ({
+  id: String(dto.item_id),
+  name: dto.item_name,
+  unit: dto.unit,
+  importUnit: dto.import_unit,
+  conversionFactor: dto.conversion_factor || 1,
+  minStockLevel: dto.min_stock_level || 0,
+  linkedProductId: dto.linked_product_id,
+  linkedProductName: dto.linked_product_name,
+  quantity: Number(dto.quantity || 0),
+  isLowStock: dto.is_low_stock === true,
+  isActive: dto.is_active === true,
+});
+
+const mapTransaction = (dto: InventoryTransactionDto): InventoryTransaction => ({
+  id: dto.transaction_id,
+  itemId: dto.item_id,
+  itemName: dto.item_name,
+  type: dto.type,
+  quantity: dto.quantity,
+  importUnit: dto.import_unit,
+  importQuantity: dto.import_quantity,
+  stockAfter: dto.stock_after,
+  orderRef: dto.reference_order_id,
+  userName: dto.user_name,
+  note: dto.note,
+  createdAt: dto.created_at,
+});
 
 export const useInventoryStore = create<InventoryState>()(
   persist(
     (set, get) => ({
-      items: DEFAULT_ITEMS,
+      items: [],
+      lowStockItems: [],
+      loading: false,
+      error: null,
 
-      hasItemByName: (name) => {
-        const n = name.trim().toLowerCase();
-        return get().items.some((i) => i.name.trim().toLowerCase() === n);
+      fetchItems: async () => {
+        try {
+          set({ loading: true, error: null });
+          const res = await inventoryApi.getAll(false);
+          const data = Array.isArray(res.data) ? res.data : [];
+          set({ items: data.map(mapDtoToItem), loading: false });
+        } catch (error: any) {
+          set({ loading: false, error: error?.message || 'Lỗi tải kho' });
+        }
       },
 
-      addItem: (item) => {
-        const n = item.name.trim().toLowerCase();
-        if (get().items.some((i) => i.name.trim().toLowerCase() === n)) {
+      fetchLowStock: async () => {
+        try {
+          const res = await inventoryApi.getLowStock();
+          const data = Array.isArray(res.data) ? res.data : [];
+          set({ lowStockItems: data.map(mapDtoToItem) });
+        } catch (error: any) {
+          console.error('Lỗi fetchLowStock:', error);
+        }
+      },
+
+      addItem: async (payload) => {
+        try {
+          const res = await inventoryApi.create(payload);
+          const created = mapDtoToItem(res.data as InventoryItemDto);
+          set((s) => ({ items: [created, ...s.items] }));
+          return true;
+        } catch (error: any) {
+          set({ error: error?.response?.data?.message || 'Lỗi tạo mặt hàng' });
           return false;
         }
-        const id = Date.now().toString();
-        set((state) => ({
-          items: [...state.items, { ...item, id }],
-        }));
-        return true;
       },
 
-      removeItem: (id) => {
-        set((state) => ({
-          items: state.items.filter((i) => i.id !== id),
-        }));
+      updateItem: async (id, payload) => {
+        try {
+          const res = await inventoryApi.update(Number(id), payload);
+          const updated = mapDtoToItem(res.data as InventoryItemDto);
+          set((s) => ({
+            items: s.items.map((i) => (i.id === id ? updated : i)),
+          }));
+          return true;
+        } catch (error: any) {
+          set({ error: error?.response?.data?.message || 'Lỗi cập nhật' });
+          return false;
+        }
       },
 
-      updateQuantity: (id, delta) => {
-        set((state) => ({
-          items: state.items.map((i) =>
-            i.id === id ? { ...i, quantity: Math.max(0, i.quantity + delta) } : i
-          ),
-        }));
+      importStock: async (id, qty, useImportUnit, note, userId) => {
+        try {
+          const res = await inventoryApi.importStock(Number(id), {
+            quantity: qty,
+            use_import_unit: useImportUnit,
+            note,
+            user_id: userId,
+          });
+          const updatedItem = mapDtoToItem(res.data.item as InventoryItemDto);
+          set((s) => ({
+            items: s.items.map((i) => (i.id === id ? updatedItem : i)),
+          }));
+          return res.data.message || 'Nhập kho thành công';
+        } catch (error: any) {
+          return null;
+        }
       },
 
-      setQuantity: (id, value) => {
-        set((state) => ({
-          items: state.items.map((i) =>
-            i.id === id ? { ...i, quantity: Math.max(0, value) } : i
-          ),
-        }));
+      exportStock: async (id, qty, note, userId) => {
+        try {
+          const res = await inventoryApi.exportStock(Number(id), {
+            quantity: qty,
+            note,
+            user_id: userId,
+          });
+          const updatedItem = mapDtoToItem(res.data.item as InventoryItemDto);
+          set((s) => ({
+            items: s.items.map((i) => (i.id === id ? updatedItem : i)),
+          }));
+          return res.data.message || 'Xuất kho thành công';
+        } catch (error: any) {
+          return null;
+        }
       },
 
-      getUnitLabel: (unit) => UNIT_LABELS[unit],
+      getHistory: async (id) => {
+        try {
+          const res = await inventoryApi.getHistory(Number(id));
+          const data = Array.isArray(res.data) ? res.data : [];
+          return data.map(mapTransaction);
+        } catch (error: any) {
+          return [];
+        }
+      },
+
+      getUnitLabel: (unit) => UNIT_LABELS[unit] || unit,
+      getImportUnitLabel: (unit) => IMPORT_UNIT_LABELS[unit] || unit,
+      getTypeLabel: (type) => TYPE_LABELS[type] || type,
     }),
     {
       name: 'inventory-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({ items: state.items, lowStockItems: state.lowStockItems }),
     }
   )
 );

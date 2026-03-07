@@ -20,12 +20,18 @@ export const shiftApi = {
     });
   },
 
-  // 4. Đóng ca
-  closeShift: (shiftId: number, actualCash: number, note?: string) => {
+  // 4. Đóng ca (kèm tùy chọn gửi email)
+  closeShift: (shiftId: number, actualCash: number, note?: string, sendEmail: boolean = true) => {
     return axiosClient.post('/shifts/close', {
       shift_id: shiftId,
       actual_cash: actualCash,
-      note: note
+      note: note,
+      send_email: sendEmail
     });
+  },
+
+  // 5. [MỚI] Lấy báo cáo chi tiết của 1 ca (xem lịch sử)
+  getShiftReport: (shiftId: number) => {
+    return axiosClient.get(`/shifts/${shiftId}/report`);
   }
 };

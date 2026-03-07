@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 import {
   Text,
-  Surface,
   Switch,
   FAB,
   TextInput,
@@ -114,23 +113,22 @@ export const TableManagementScreen = () => {
     return (
       <TouchableOpacity
         style={styles.gridItem}
-        activeOpacity={0.7}
+        activeOpacity={0.8}
         onPress={() => openModal(item)}
       >
-        <Surface
+        <View
           style={[styles.card, !active && styles.inactiveCard]}
-          elevation={2}
         >
           <View
             style={[
               styles.iconBox,
-              { backgroundColor: active ? Colors.primary + '18' : '#EEF2F4' },
+              { backgroundColor: active ? '#E6DDD8' : '#E8E4DF' },
             ]}
           >
             <MaterialCommunityIcons
               name={getShapeIcon(item.shape) as any}
-              size={28}
-              color={active ? Colors.primary : '#94A3B8'}
+              size={24}
+              color={active ? '#8D6E63' : '#B5AEA7'}
             />
           </View>
 
@@ -146,7 +144,7 @@ export const TableManagementScreen = () => {
               <View
                 style={[
                   styles.statusDot,
-                  { backgroundColor: active ? Colors.green : '#CBD5E1' },
+                  { backgroundColor: active ? '#8DB580' : '#D5CFC9' },
                 ]}
               />
               <Text
@@ -182,10 +180,10 @@ export const TableManagementScreen = () => {
                   loadData();
                 }
               }}
-              color={Colors.primary}
+              color={'#8D6E63'}
             />
           </View>
-        </Surface>
+        </View>
       </TouchableOpacity>
     );
   };
@@ -193,7 +191,7 @@ export const TableManagementScreen = () => {
   return (
     <View style={styles.container}>
       <ManagerHeader
-        title="Quản lý Bàn"
+        title="Quản lý bàn"
         subtitle="Sơ đồ & Trạng thái"
       />
 
@@ -223,11 +221,11 @@ export const TableManagementScreen = () => {
           contentContainerStyle={styles.modal}
         >
           <Text variant="headlineSmall" style={styles.modalTitle}>
-            {editingTable ? 'Cập nhật Bàn' : 'Thêm Bàn Mới'}
+            {editingTable ? 'Cập nhật bàn' : 'Thêm bàn mới'}
           </Text>
 
           <TextInput
-            label="Tên bàn (VD: Bàn Vip 1)"
+            label="Tên bàn (VD: Bàn 01)"
             value={name}
             onChangeText={setName}
             mode="outlined"
@@ -274,26 +272,26 @@ export const TableManagementScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F2F4F8' },
+  container: { flex: 1, backgroundColor: '#F4F3F1' },
   listContent: { padding: 16 },
-  gridItem: { marginBottom: 12 },
+  gridItem: { marginBottom: 10 },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: 14,
     borderRadius: 18,
-    backgroundColor: '#FFF',
-    minHeight: 80,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 2,
+    backgroundColor: '#ffffffff',
+    minHeight: 76,
+    shadowColor: '#8D6E63',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
   },
-  inactiveCard: { opacity: 0.85, backgroundColor: '#F8FAFC' },
+  inactiveCard: { opacity: 0.75, backgroundColor: '#EAE7E3' },
   iconBox: {
-    width: 52,
-    height: 52,
+    width: 48,
+    height: 48,
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
@@ -301,24 +299,24 @@ const styles = StyleSheet.create({
   },
   cardBody: { flex: 1, minWidth: 0, justifyContent: 'center' },
   cardTitle: {
-    fontWeight: '700',
-    fontSize: 16,
-    color: '#2D3748',
+    fontWeight: '600',
+    fontSize: 15,
+    color: '#4A4540',
   },
-  cardTitleInactive: { color: '#94A3B8' },
+  cardTitleInactive: { color: '#B5AEA7' },
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 6,
+    marginTop: 5,
   },
   statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
     marginRight: 6,
   },
-  statusText: { fontSize: 13, color: '#64748B', fontWeight: '500' },
-  statusTextInactive: { color: '#94A3B8' },
+  statusText: { fontSize: 12, color: '#6B6560', fontWeight: '500' },
+  statusTextInactive: { color: '#B5AEA7' },
   switchWrap: {
     justifyContent: 'center',
     alignItems: 'center',
@@ -328,23 +326,36 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 16,
-    backgroundColor: Colors.primary,
+    backgroundColor: '#8D6E63',
+    borderRadius: 28,
   },
   modal: {
-    backgroundColor: '#FFF',
+    backgroundColor: '#FAF9F7',
     padding: 24,
     margin: 20,
     borderRadius: 20,
+    shadowColor: '#8D6E63',
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
   },
   modalTitle: {
     fontWeight: '700',
     marginBottom: 20,
     textAlign: 'center',
-    color: Colors.primary,
+    color: '#5D4037',
   },
-  input: { marginBottom: 16, backgroundColor: '#FFF' },
-  label: { marginBottom: 10, fontWeight: '600', color: '#475569', fontSize: 14 },
+  input: { marginBottom: 16, backgroundColor: '#FAF9F7' },
+  label: { marginBottom: 10, fontWeight: '600', color: '#6B6560', fontSize: 14 },
   segmented: { marginBottom: 20 },
+  segBtnActive: {
+    backgroundColor: '#8D6E63',
+    borderColor: '#8D6E63',
+  },
+  segBtnInactive: {
+    backgroundColor: 'transparent',
+    borderColor: '#DDD9D3',
+  },
   rowCenter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -352,8 +363,9 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     minHeight: 48,
   },
-  rowLabel: { fontSize: 15, color: '#374151', fontWeight: '500' },
+  rowLabel: { fontSize: 15, color: '#4A4540', fontWeight: '500' },
   modalSwitchWrap: { justifyContent: 'center' },
-  saveBtn: { backgroundColor: Colors.primary, borderRadius: 12 },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 10 },
+  saveBtn: { backgroundColor: '#8D6E63', borderRadius: 14, flex: 1 },
   saveBtnContent: { height: 48 },
 });

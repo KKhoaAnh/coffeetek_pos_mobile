@@ -24,13 +24,13 @@ export const MenuScreen = () => {
       "Bạn muốn quản lý nội dung gì?",
       [
         { text: "Hủy", style: "cancel" },
-        { 
-          text: "Món ăn (Menu)", 
-          onPress: () => navigation.navigate('ProductManagementScreen' as never) 
+        {
+          text: "Món ăn (Menu)",
+          onPress: () => navigation.navigate('ProductManagementScreen' as never)
         },
-        { 
-          text: "Tùy chọn (Modifier)", 
-          onPress: () => navigation.navigate('ModifierManagementScreen' as never) 
+        {
+          text: "Tùy chọn (Modifier)",
+          onPress: () => navigation.navigate('ModifierManagementScreen' as never)
         }
       ]
     );
@@ -38,9 +38,9 @@ export const MenuScreen = () => {
 
   const { tableId, tableName } = route.params as { tableId?: number, tableName?: string } || {};
 
-  const { 
+  const {
     categories, filteredProducts, isLoading, activeCategoryId,
-    loadMenu, filterByCategory, searchProduct 
+    loadMenu, filterByCategory, searchProduct
   } = useMenuStore();
 
   const [searchText, setSearchText] = useState('');
@@ -59,16 +59,16 @@ export const MenuScreen = () => {
   const renderCategoryTab = (cat: { id: number | 'ALL', name: string }) => {
     const isActive = activeCategoryId === cat.id;
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         key={cat.id}
         onPress={() => filterByCategory(cat.id)}
         style={[
-          styles.catTab, 
+          styles.catTab,
           isActive && styles.catTabActive
         ]}
       >
         <Text style={[
-          styles.catText, 
+          styles.catText,
           isActive && styles.catTextActive
         ]}>
           {cat.name}
@@ -80,19 +80,19 @@ export const MenuScreen = () => {
   return (
     <View style={styles.container}>
       {/* Header: Hiển thị bàn đang chọn */}
-      <ManagerHeader 
-        title={tableName ? `Order: ${tableName}` : "Thực Đơn"} 
+      <ManagerHeader
+        title={tableName ? `Order: ${tableName}` : "Thực đơn"}
         subtitle="Chọn món để thêm vào giỏ"
 
         rightIcon={isManager ? "cog" : undefined}
-          onRightPress={isManager ? handleManagerPress : undefined}
+        onRightPress={isManager ? handleManagerPress : undefined}
       />
 
       {/* Thanh Tìm Kiếm */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBox}>
-          <MaterialCommunityIcons name="magnify" size={20} color="#888" style={{marginLeft: 10}} />
-          <TextInput 
+          <MaterialCommunityIcons name="magnify" size={20} color="#888" style={{ marginLeft: 10 }} />
+          <TextInput
             placeholder="Tìm tên món ăn, đồ uống..."
             style={styles.searchInput}
             value={searchText}
@@ -103,7 +103,7 @@ export const MenuScreen = () => {
           />
           {searchText.length > 0 && (
             <TouchableOpacity onPress={() => { setSearchText(''); searchProduct(''); }}>
-              <MaterialCommunityIcons name="close-circle" size={18} color="#CCC" style={{marginRight: 10}} />
+              <MaterialCommunityIcons name="close-circle" size={18} color="#CCC" style={{ marginRight: 10 }} />
             </TouchableOpacity>
           )}
         </View>
@@ -111,8 +111,8 @@ export const MenuScreen = () => {
 
       {/* Danh sách Danh Mục (Trượt ngang) */}
       <View style={{ height: 50 }}>
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 16, alignItems: 'center' }}
         >
@@ -130,29 +130,32 @@ export const MenuScreen = () => {
         <FlatList
           data={filteredProducts}
           keyExtractor={(item) => item.product_id}
-          key={`grid-2`} 
+          key={`grid-2`}
           numColumns={2}
           contentContainerStyle={styles.listContent}
           columnWrapperStyle={{ justifyContent: 'space-between' }}
           renderItem={({ item }) => (
-            <ProductItem 
-              product={item} 
+            <ProductItem
+              product={item}
               onPress={handleProductPress}
               numColumns={2}
             />
           )}
           ListEmptyComponent={
-             <View style={styles.center}>
-               <MaterialCommunityIcons name="food-off" size={40} color="#DDD" />
-               <Text style={{color: '#999', marginTop: 10}}>Không tìm thấy món nào</Text>
-             </View>
+            <View style={styles.center}>
+              <MaterialCommunityIcons name="food-off" size={40} color="#DDD" />
+              <Text style={{ color: '#999', marginTop: 10 }}>Không tìm thấy món nào</Text>
+            </View>
           }
         />
       )}
 
-      <FloatingCartButton tableId={tableId} tableName={tableName} />
-      
-      <ProductDetailModal 
+      {/* Chỉ hiển thị nút giỏ hàng khi đang ở chế độ order cho bàn (có tableId) */}
+      {tableId ? (
+        <FloatingCartButton tableId={tableId} tableName={tableName} />
+      ) : null}
+
+      <ProductDetailModal
         isVisible={isModalVisible}
         product={selectedProduct}
         onClose={() => setModalVisible(false)}
@@ -162,18 +165,19 @@ export const MenuScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F6F8' },
+  container: { flex: 1, backgroundColor: '#F4F3F1' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 50 },
-  
+
   searchContainer: {
-    padding: 12,
-    backgroundColor: 'white',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: 'transparent',
   },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0F2F5',
-    borderRadius: 8,
+    backgroundColor: '#ECEAE6',
+    borderRadius: 14,
     height: 40,
   },
   searchInput: {
@@ -181,24 +185,26 @@ const styles = StyleSheet.create({
     height: '100%',
     paddingHorizontal: 8,
     fontSize: 14,
+    color: '#4A4540',
   },
 
   catTab: {
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 20,
-    backgroundColor: 'white',
+    backgroundColor: '#ECEAE6',
     marginRight: 10,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: '#E0DCD7',
   },
   catTabActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: '#8D6E63',
+    borderColor: '#8D6E63',
   },
   catText: {
     fontWeight: '600',
-    color: '#666',
+    color: '#8A8580',
+    fontSize: 13,
   },
   catTextActive: {
     color: 'white',

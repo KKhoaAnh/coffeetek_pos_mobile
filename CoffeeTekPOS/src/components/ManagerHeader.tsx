@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, Platform, StatusBar, TouchableOpacity } from 'react-native';
-import { Text, Surface } from 'react-native-paper';
+import { Text } from 'react-native-paper';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Colors } from '../constants/app.constant';
@@ -10,43 +11,48 @@ interface Props {
   subtitle?: string;
   showAvatar?: boolean;
   userInitial?: string;
-  // [MỚI] Thêm tùy chọn nút bên phải
-  rightIcon?: keyof typeof MaterialCommunityIcons.glyphMap; // Giới hạn tên icon cho chuẩn
+  rightIcon?: keyof typeof MaterialCommunityIcons.glyphMap;
   onRightPress?: () => void;
 }
 
-export const ManagerHeader = ({ 
-  title, 
-  subtitle, 
-  showAvatar = false, 
+export const ManagerHeader = ({
+  title,
+  subtitle,
+  showAvatar = false,
   userInitial = "U",
-  rightIcon,      // [MỚI]
-  onRightPress    // [MỚI]
+  rightIcon,
+  onRightPress
 }: Props) => {
   const navigation = useNavigation();
   const canGoBack = navigation.canGoBack();
 
   return (
-    <Surface style={styles.container} elevation={4}>
+    <LinearGradient
+      colors={['#6D4C41', '#8D6E63', '#B5A59E', '#D6CEC9', '#F4F3F1']}
+      locations={[0, 0.3, 0.6, 0.85, 1]}
+      start={{ x: 0.5, y: 0 }}
+      end={{ x: 0.5, y: 1 }}
+      style={styles.container}
+    >
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-      
+
       <View style={styles.content}>
         {/* TRÁI: Back hoặc Logo */}
         <View style={styles.leftSection}>
           {canGoBack ? (
-            <TouchableOpacity 
-              onPress={() => navigation.goBack()} 
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
               style={styles.iconButton}
-              hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <MaterialCommunityIcons name="arrow-left" size={26} color={Colors.white} />
+              <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.white} />
             </TouchableOpacity>
           ) : (
             <View style={styles.appIcon}>
-              <MaterialCommunityIcons name="store" size={20} color={Colors.primary} />
+              <MaterialCommunityIcons name="store" size={18} color="#6D4C41" />
             </View>
           )}
-          
+
           <View style={{ marginLeft: 12 }}>
             <Text variant="titleMedium" style={styles.title}>{title}</Text>
             {subtitle && (
@@ -57,36 +63,34 @@ export const ManagerHeader = ({
 
         {/* PHẢI: Các nút hành động hoặc Avatar */}
         <View style={styles.rightSection}>
-            {/* [MỚI] Nút hành động tùy chỉnh (Edit, Filter...) */}
-            {rightIcon && (
-                <TouchableOpacity 
-                    onPress={onRightPress} 
-                    style={[styles.iconButton, { marginRight: showAvatar ? 8 : 0 }]} // Cách avatar ra nếu có
-                >
-                    <MaterialCommunityIcons name={rightIcon} size={24} color={Colors.white} />
-                </TouchableOpacity>
-            )}
+          {rightIcon && (
+            <TouchableOpacity
+              onPress={onRightPress}
+              style={[styles.iconButton, { marginRight: showAvatar ? 8 : 0 }]}
+            >
+              <MaterialCommunityIcons name={rightIcon} size={22} color={Colors.white} />
+            </TouchableOpacity>
+          )}
 
-            {/* Avatar User */}
-            {showAvatar && (
-                <View style={styles.avatar}>
-                    <Text style={{color: Colors.primary, fontWeight: 'bold'}}>{userInitial}</Text>
-                </View>
-            )}
+          {showAvatar && (
+            <View style={styles.avatar}>
+              <Text style={{ color: '#6D4C41', fontWeight: 'bold', fontSize: 14 }}>{userInitial}</Text>
+            </View>
+          )}
         </View>
       </View>
-    </Surface>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#8D6E63', 
-    paddingTop: Platform.OS === 'ios' ? 50 : StatusBar.currentHeight! + 10,
-    paddingBottom: 15,
+    paddingTop: Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight ?? 24) + 10,
+    paddingBottom: 20,
     paddingHorizontal: 16,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    // Không bo góc dưới - hòa vào nền
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
     zIndex: 10,
   },
   content: {
@@ -97,39 +101,39 @@ const styles = StyleSheet.create({
   leftSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1, 
+    flex: 1,
   },
   rightSection: {
-      flexDirection: 'row',
-      alignItems: 'center'
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  // [SỬA] Đặt tên chung là iconButton để tái sử dụng style kính mờ
   iconButton: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.15)', // Hiệu ứng kính mờ sang trọng
+    padding: 7,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   appIcon: {
-    width: 32, height: 32, borderRadius: 10, backgroundColor: Colors.white,
-    justifyContent: 'center', alignItems: 'center'
+    width: 34, height: 34, borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    justifyContent: 'center', alignItems: 'center',
   },
   title: {
     color: Colors.white,
-    fontWeight: 'bold',
-    fontSize: 18,
-    letterSpacing: 0.5,
+    fontWeight: '700',
+    fontSize: 17,
+    letterSpacing: 0.3,
   },
   subtitle: {
-    color: 'rgba(255,255,255,0.85)',
+    color: 'rgba(255,255,255,0.75)',
     fontSize: 12,
+    marginTop: 1,
   },
   avatar: {
-    width: 36, height: 36, borderRadius: 18, 
-    backgroundColor: Colors.white,
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: 'rgba(255,255,255,0.92)',
     justifyContent: 'center', alignItems: 'center',
-    marginLeft: 4, // Chỉnh lại margin chút
-    elevation: 2
-  }
+    marginLeft: 4,
+  },
 });

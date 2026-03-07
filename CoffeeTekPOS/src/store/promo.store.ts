@@ -1,11 +1,9 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { promoApi, DiscountType, ApplyTo, DayOfWeek, PromotionDto, PromotionPayload } from '../api/promo.api';
 
-export type DiscountType = 'percent' | 'fixed';
-
-/** 0=CN, 1=T2, 2=T3, ... 6=T7 */
-export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+export type { DiscountType, ApplyTo, DayOfWeek };
 
 export interface Promotion {
   id: string;
@@ -13,11 +11,19 @@ export interface Promotion {
   description: string;
   discountType: DiscountType;
   discountValue: number;
+  /** Phạm vi: 'BILL' = tổng đơn, 'CATEGORY' = nhóm món, 'PRODUCT' = món cụ thể */
+  applyTo: ApplyTo;
+  /** Đơn tối thiểu (chỉ cho BILL) */
+  minOrderAmount: number;
+  /** Danh sách product_id được áp dụng (khi applyTo = 'PRODUCT') */
+  productIds: number[];
+  /** Danh sách category_id được áp dụng (khi applyTo = 'CATEGORY') */
+  categoryIds: number[];
   /** ISO date YYYY-MM-DD */
   startDate: string;
   /** ISO date YYYY-MM-DD */
   endDate: string;
-  /** Rỗng = áp dụng mọi ngày; có phần tử = chỉ áp dụng các thứ đã chọn */
+  /** Rỗng = áp dụng mọi ngày */
   daysOfWeek: DayOfWeek[];
   /** HH:mm hoặc null = cả ngày */
   timeStart: string | null;
@@ -36,79 +42,120 @@ const DAY_LABELS: Record<DayOfWeek, string> = {
   6: 'T7',
 };
 
-const today = new Date();
-const nextMonth = new Date(today);
-nextMonth.setMonth(nextMonth.getMonth() + 1);
-
-const formatDate = (d: Date) => d.toISOString().slice(0, 10);
-
-const DEFAULT_PROMOS: Promotion[] = [
-  {
-    id: '1',
-    name: 'Happy Hour 14h-17h',
-    description: 'Giảm 20% từ 14h đến 17h các ngày trong tuần',
-    discountType: 'percent',
-    discountValue: 20,
-    startDate: formatDate(today),
-    endDate: formatDate(nextMonth),
-    daysOfWeek: [1, 2, 3, 4, 5],
-    timeStart: '14:00',
-    timeEnd: '17:00',
-    is_active: true,
-  },
-  {
-    id: '2',
-    name: 'Cuối tuần Free size M',
-    description: 'Mua 2 tặng 1 size M vào thứ 7, Chủ nhật',
-    discountType: 'percent',
-    discountValue: 33,
-    startDate: formatDate(today),
-    endDate: formatDate(nextMonth),
-    daysOfWeek: [6, 0],
-    timeStart: null,
-    timeEnd: null,
-    is_active: true,
-  },
-];
-
 interface PromoState {
   promotions: Promotion[];
-  addPromo: (p: Omit<Promotion, 'id'>) => void;
-  updatePromo: (id: string, p: Partial<Promotion>) => void;
-  removePromo: (id: string) => void;
-  toggleActive: (id: string) => void;
+  loading: boolean;
+  error: string | null;
+  fetchPromotions: () => Promise<void>;
+  addPromo: (p: Omit<Promotion, 'id'>) => Promise<void>;
+  updatePromo: (id: string, p: Omit<Promotion, 'id'>) => Promise<void>;
+  toggleActive: (id: string) => Promise<void>;
   getPromo: (id: string) => Promotion | undefined;
   getDayLabel: (d: DayOfWeek) => string;
 }
 
 export const getDayLabel = (d: DayOfWeek) => DAY_LABELS[d];
 
+const mapDtoToPromotion = (dto: PromotionDto): Promotion => {
+  return {
+    id: String(dto.promo_id),
+    name: dto.promo_name,
+    description: dto.description || '',
+    discountType: dto.discount_type,
+    discountValue: dto.discount_value,
+    applyTo: dto.apply_to || 'BILL',
+    minOrderAmount: dto.min_order_amount || 0,
+    productIds: dto.product_ids || [],
+    categoryIds: dto.category_ids || [],
+    startDate: dto.start_date,
+    endDate: dto.end_date,
+    daysOfWeek: (dto.days_of_week || []) as DayOfWeek[],
+    timeStart: dto.time_start,
+    timeEnd: dto.time_end,
+    is_active: dto.is_active === true || dto.is_active === 1,
+  };
+};
+
+const mapPromotionToPayload = (p: Omit<Promotion, 'id'>): PromotionPayload => {
+  return {
+    promo_name: p.name,
+    description: p.description,
+    discount_type: p.discountType,
+    discount_value: p.discountValue,
+    apply_to: p.applyTo || 'BILL',
+    min_order_amount: p.minOrderAmount || 0,
+    product_ids: p.productIds || [],
+    category_ids: p.categoryIds || [],
+    start_date: p.startDate,
+    end_date: p.endDate,
+    days_of_week: p.daysOfWeek,
+    time_start: p.timeStart,
+    time_end: p.timeEnd,
+    is_active: p.is_active,
+  };
+};
+
 export const usePromoStore = create<PromoState>()(
   persist(
     (set, get) => ({
-      promotions: DEFAULT_PROMOS,
+      promotions: [],
+      loading: false,
+      error: null,
 
-      addPromo: (p) => {
-        const id = Date.now().toString();
-        set((s) => ({ promotions: [...s.promotions, { ...p, id }] }));
+      fetchPromotions: async () => {
+        try {
+          set({ loading: true, error: null });
+          const res = await promoApi.getAll();
+          const data = Array.isArray(res.data) ? res.data : [];
+          set({
+            promotions: data.map(mapDtoToPromotion),
+            loading: false,
+            error: null,
+          });
+        } catch (error: any) {
+          set({ loading: false, error: error?.message || 'Lỗi tải khuyến mãi' });
+        }
       },
 
-      updatePromo: (id, p) => {
-        set((s) => ({
-          promotions: s.promotions.map((x) => (x.id === id ? { ...x, ...p } : x)),
-        }));
+      addPromo: async (p) => {
+        try {
+          const payload = mapPromotionToPayload(p);
+          const res = await promoApi.create(payload);
+          const created = mapDtoToPromotion(res.data as PromotionDto);
+          set((s) => ({ promotions: [created, ...s.promotions] }));
+        } catch (error: any) {
+          set({ error: error?.message || 'Lỗi tạo khuyến mãi' });
+        }
       },
 
-      removePromo: (id) => {
-        set((s) => ({ promotions: s.promotions.filter((x) => x.id !== id) }));
+      updatePromo: async (id, p) => {
+        try {
+          const payload = mapPromotionToPayload(p);
+          const numericId = Number(id);
+          const res = await promoApi.update(numericId, payload);
+          const updated = mapDtoToPromotion(res.data as PromotionDto);
+          set((s) => ({
+            promotions: s.promotions.map((x) => (x.id === id ? updated : x)),
+          }));
+        } catch (error: any) {
+          set({ error: error?.message || 'Lỗi cập nhật khuyến mãi' });
+        }
       },
 
-      toggleActive: (id) => {
-        set((s) => ({
-          promotions: s.promotions.map((x) =>
-            x.id === id ? { ...x, is_active: !x.is_active } : x
-          ),
-        }));
+      toggleActive: async (id) => {
+        try {
+          const current = get().getPromo(id);
+          if (!current) return;
+          const nextActive = !current.is_active;
+          await promoApi.toggleActive(Number(id), nextActive);
+          set((s) => ({
+            promotions: s.promotions.map((x) =>
+              x.id === id ? { ...x, is_active: nextActive } : x
+            ),
+          }));
+        } catch (error: any) {
+          set({ error: error?.message || 'Lỗi cập nhật trạng thái khuyến mãi' });
+        }
       },
 
       getPromo: (id) => get().promotions.find((x) => x.id === id),
