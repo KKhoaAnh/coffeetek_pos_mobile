@@ -1,16 +1,60 @@
 const nodemailer = require('nodemailer');
-require('dns').setDefaultResultOrder('ipv4first');
-// Tạo transporter một lần, dùng lại cho mỗi lần gửi
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT || '587'),
-    secure: false, // true for 465, false for other ports
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-    },
-    family: 4, // Ép dùng IPv4 — Render free tier không hỗ trợ IPv6
-});
+const dns = require('dns');
+
+// ================================================================
+// Lazy transporter — resolve DNS sang IPv4 thủ công
+// (Render free tier chặn outbound IPv6)
+// ================================================================
+const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
+const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587');
+
+let _transporter = null;
+
+/**
+ * Tạo transporter với host đã resolve sang IPv4.
+ * Gọi 1 lần, cache lại để dùng tiếp.
+ */
+const getTransporter = () => {
+    return new Promise((resolve, reject) => {
+        if (_transporter) return resolve(_transporter);
+
+        // Resolve hostname sang IPv4 thủ công
+        dns.resolve4(SMTP_HOST, (err, addresses) => {
+            if (err || !addresses || addresses.length === 0) {
+                console.error('[Email] Không thể resolve IPv4 cho', SMTP_HOST, err?.message);
+                // Fallback: thử dùng hostname gốc
+                _transporter = nodemailer.createTransport({
+                    host: SMTP_HOST,
+                    port: SMTP_PORT,
+                    secure: false,
+                    auth: {
+                        user: process.env.SMTP_USER,
+                        pass: process.env.SMTP_PASS,
+                    },
+                });
+                return resolve(_transporter);
+            }
+
+            const ipv4 = addresses[0]; // VD: '142.250.157.108'
+            console.log(`[Email] Resolved ${SMTP_HOST} → ${ipv4} (IPv4)`);
+
+            _transporter = nodemailer.createTransport({
+                host: ipv4,          // Kết nối trực tiếp tới IPv4
+                port: SMTP_PORT,
+                secure: false,
+                auth: {
+                    user: process.env.SMTP_USER,
+                    pass: process.env.SMTP_PASS,
+                },
+                tls: {
+                    servername: SMTP_HOST, // Cần cho TLS certificate validation
+                },
+            });
+
+            resolve(_transporter);
+        });
+    });
+};
 
 /**
  * Format tiền VND
@@ -287,6 +331,8 @@ const sendShiftReport = async (reportData, recipientEmail) => {
             html: buildShiftReportHTML(reportData),
         };
 
+        // Lấy transporter đã resolve IPv4
+        const transporter = await getTransporter();
         const info = await transporter.sendMail(mailOptions);
         console.log(`[Email] Gửi thành công đến ${to}: ${info.messageId}`);
         return true;
