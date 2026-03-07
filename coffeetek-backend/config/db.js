@@ -15,6 +15,7 @@ const pool = mysql.createPool({
 });
 
 pool.on('connection', (connection) => {
+    connection.query("SET time_zone = '+07:00'");
     connection.query("SET NAMES utf8mb4");
     connection.query("SET CHARACTER SET utf8mb4");
     connection.query("SET SESSION collation_connection = 'utf8mb4_unicode_ci'");
