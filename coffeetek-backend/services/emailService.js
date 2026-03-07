@@ -6,8 +6,8 @@ const dns = require('dns');
 // (Render free tier chặn outbound IPv6)
 // ================================================================
 const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
-const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587');
-
+// const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587');
+const SMTP_PORT = parseInt(process.env.SMTP_PORT || '465');
 let _transporter = null;
 
 /**
